@@ -24,6 +24,7 @@
 
 <script charset="UTF-8" type="text/javascript">
 
+    dojo.require("dijit.form.ComboBox");
     dojo.require("dijit.form.FilteringSelect");
     dojo.require("dojo.data.ItemFileReadStore");
     dojo.require("dijit.form.Form");
@@ -60,13 +61,37 @@
         }
     }
 
+    var companies = new dojo.data.ItemFileWriteStore({url: '/admin/customers'});
+    var users = new dojo.data.ItemFileWriteStore({url: '/admin/users'});
+    var company = null;
+
+    dojo.addOnLoad(function() {
+        new dijit.form.FilteringSelect({
+            id: "user",
+            store: users,
+            autoComplete: true,
+            style: "width: 150px;"
+        }, "user");
+
+        new dijit.form.FilteringSelect({
+            id: "company",
+            store: companies,
+            autoComplete: true,
+            style: "width: 150px;",
+            onChange: function(company){
+                dijit.byId('user').query = {id: (company == null) ? "*" : company};
+            }
+        }, "company");
+    });
+
 </script>
 
-<div dojoType="dojo.data.ItemFileReadStore" jsId="user_store" url="/admin/admins"></div>
+<div dojoType="dojo.data.ItemFileReadStore" jsId="user_store" url="/admin/customer_store"></div>
 <div dojoType="dojo.data.ItemFileReadStore" jsId="status_store" url="/pbx/ticket_statuses"></div>
 <div dojoType="dojo.data.ItemFileReadStore" jsId="type_store" url="/pbx/ticket_types"></div>
 <div dojoType="dojo.data.ItemFileReadStore" jsId="priority_store" url="/pbx/ticket_priorities"></div>
-<div dojoType="dojo.data.ItemFileReadStore" jsId="customer_store" url="/admin/customers"></div>
+<div dojoType="dojo.data.ItemFileReadStore" jsId="add_ticket_cust_store" url="/admin/customer_store"></div>
+<div dojoType="dojo.data.ItemFileReadStore" jsId="add_ticket_admins" url="/admin/admins"></div>
 
 <div dojoType="voiceware.PbxForm"
      data-dojo-props="title:'Add Ticket',legend:'Ticket Information',delStyle:'display:none', noticeClass: 'noNotice',
@@ -75,7 +100,15 @@
     <ul class="field_list">
         <li class="even">
             <label class="fieldlabel">Customer</label>
-            <input dojoType="dijit.form.FilteringSelect" required="true" store="customer_store" value="name" searchAttr="name" name="customer_id">
+            <input id="company" />
+        </li>
+        <li class="odd">
+            <label class="fieldlabel">Opened By</label>
+            <input id="user" />
+        </li>
+        <li class="odd">
+            <label class="fieldlabel">Assigned To</label>
+            <input dojoType="dijit.form.FilteringSelect" required="false" store="add_ticket_admins" value="" searchAttr="name" name="admin_id">
         </li>
         <li class="odd">
             <label class="fieldlabel">Status</label>
@@ -98,10 +131,7 @@
             <label class="fieldlabel">Ticket Description</label>
             <textarea name="description" data-dojo-type="dijit.form.SimpleTextarea" rows="4" cols="50" style="width:auto;"></textarea>
         </li>
-        <li class="odd">
-            <label class="fieldlabel">Opened By</label>
-            <input dojoType="dijit.form.FilteringSelect" required="true" store="user_store" value="" searchAttr="name" name="user_id">
-        </li>
+
         <li class="even">
             <label class="fieldlabel">Excpeted Resolution Date</label>
             <input type="text" name="expected_date" value=""

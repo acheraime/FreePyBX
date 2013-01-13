@@ -765,18 +765,18 @@ a.btn.red:visited {
 }
 
 select, input, button, textarea, button {
-    font: 99% arial, helvetica, clean, sans-serif;
+    font: 90% helvetica, clean, sans-serif;
 }
 
-input, button, textarea, select {
-}
+/*input, button, textarea, select {*/
+/*}*/
 
-input, button, textarea, select, optgroup, option {
-    font-family: inherit;
-    font-size: inherit;
-    font-style: inherit;
-    font-weight: inherit;
-}
+/*input, button, textarea, select, optgroup, option {*/
+    /*font-family: inherit;*/
+    /*font-size: inherit;*/
+    /*font-style: inherit;*/
+    /*font-weight: inherit;*/
+/*}*/
 
 body, div, dl, dt, dd, ul, ol, li, h1, h2, h3, h4, h5, h6, pre, code, form, fieldset, legend, input, button, textarea, p, blockquote, th, td {
     margin: 0;
@@ -806,7 +806,7 @@ li {
 }
 
 body {
-    font: 13px /1.231 'helvetica neue', arial, helvetica, clean, sans-serif;
+    /*font: 13px /1.231 'helvetica neue', arial, helvetica, clean, sans-serif;*/
 }
 .details_fieldset legend {
     color: #3C4D5A;

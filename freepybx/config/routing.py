@@ -41,24 +41,21 @@ def make_map(config):
     map.connect('/error/{action}', controller='error')
     map.connect('/error/{action}/{id}', controller='error')
 
+    # FreeSWITCH Specific
     map.connect('xml', '/configuration', controller='pbx', action='configuration')
     map.connect('xml', '/directory', controller='pbx', action='directory')
     map.connect('xml', '/dialplan', controller='pbx', action='dialplan')
 
-    map.connect('mail', '/', controller='root', action='main')   
-    map.connect('mail', '/main', controller='root', action='main')
-    map.connect('mail', '/auth_user', controller='root', action='auth_user')
+    # Main APP
+    map.connect('main', '/', controller='root', action='main')
+    map.connect('main', '/main', controller='root', action='main')
+    map.connect('auth', '/auth_user', controller='root', action='auth_user')
 
+    # Auth
     map.connect('login', '/login', controller='root', action='login')
     map.connect('logout', '/logout', controller='root', action='logout')
 
-    map.connect('mail', '/{controller}/{action}/{folder}/', controller='pymp', action='get_message_headers')
-    map.connect('message', '/pymp/send_message', controller='pymp', action='send_message')
-    map.connect('message', '/pymp/{action}/{folder}', controller='pymp', action='get_messages')
-    map.connect('message', '/pymp/{action}/{folder}/{uid}', controller='pymp', action='get_message')
-    map.connect('message', '/pymp/{action}/{folder}/{uid}/{filename}', controller='pymp', action='get_attachment')
-    map.connect('message', '/pymp/{action}/{folder}', controller='pymp', action='get_message_headers')    
-
+    # Admin
     map.connect('admin', '/admin/', controller='admin', action='index')
     map.connect('admin', '/admin/add_gateway', controller='admin', action='add_gateway')
     map.connect('admin', '/admin/add_context', controller='admin', action='add_context')
@@ -69,17 +66,13 @@ def make_map(config):
     map.connect('admin', '/admin/billing', controller='admin', action='billing')
     map.connect('admin', '/admin/login', controller='admin', action='login')
 
-    map.connect('services', '/services/', controller='services', action='index')
-    map.connect('services', '/services/service_list', controller='services', action='service_grid')
-    map.connect('services', '/services/service_add', controller='services', action='service_add')
-    map.connect('services', '/services/service_plans', controller='services', action='service_plan_grid')
-    map.connect('services', '/services/voip_profiles', controller='services', action='voip_profile_grid')
-    map.connect('services', '/services/voip_policies', controller='services', action='voip_policy_grid')
-
+    # Provisioning
     map.connect('provisioning', '/provisioning/{manufacturer}/{mac}/{model}.xml', controller='provisioning', action='get_config')
 
+    # Flash AMF channel RMI
     map.connect('/flash_gateway', controller='flash_gateway')
 
+    # Special controller actions for templates
     map.connect('root', '/pbx/user_edit', controller='root', action='user_edit')
     map.connect('root', '/pbx/ext_edit', controller='root', action='ext_edit')
     map.connect('root', '/pbx/user_add', controller='root', action='user_add')
@@ -88,7 +81,6 @@ def make_map(config):
     map.connect('pbx', '/pbx/cdr_ext_summary', controller='pbx', action='cdr_ext_summary')
     map.connect('pbx', '/pbx/ticket_view/{id}', controller='root', action='ticket_view')
     map.connect('pbx', '/pbx/add_extension', controller='pbx', action='add_extension')
-
 
     map.connect('/{controller}/{action}')
     map.connect('/{controller}/{action}/{id}')

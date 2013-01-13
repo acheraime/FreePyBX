@@ -22,7 +22,6 @@ setup(
         "PyAMF",
         "pytz",
         "zope.sqlalchemy",
-        "pyamf",
         "Twisted"
     ],
     setup_requires=["PasteScript>=1.6.3"],

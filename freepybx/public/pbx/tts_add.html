@@ -35,7 +35,8 @@
     dojo.require("dojox.validate._base");
     dojo.require("dijit.form.FilteringSelect");
     dojo.require("dojo.data.ItemFileReadStore");
-    
+    dojo.require("dijit.form.SimpleTextarea");
+
 
     function ttsAddFormHandler() {
         if(dijit.byId("tts_add_form").validate()) {
@@ -64,12 +65,12 @@
 </script>
 
 <div dojoType="voiceware.PbxForm"
-     data-dojo-props="title:'Add Text to Speech',legend:'TTS Settings',delStyle:'display:none', noticeClass: 'noNotice',
+     data-dojo-props="title:'Add Text to Speech Script',legend:'Settings',delStyle:'display:none', noticeClass: 'noNotice',
      formName:'tts_add_form',helpCategory:'add_tts', submitFunc:'ttsAddFormHandler();',
      delFunc:'this.form.rest();'">
     <ul class="field_list">
         <li class="even">
-            <label class="fieldlabel">TTS Name</label>
+            <label class="fieldlabel">Friendly Name</label>
             <input type="text" name="name" size="30"
                    dojoType="dijit.form.ValidationTextBox"
                    placeholder="e.g. Main"
@@ -80,8 +81,8 @@
                    trim="true"/>
         </li>
         <li class="odd">
-            <label class="fieldlabel">Text</label>
-            <textarea id="tts_text" name="text" dojoType="dijit.form.Textarea" style="width:250px; height: 80px;"></textarea>
+            <label class="fieldlabel">Text to Speak</label>
+            <textarea name="tts_text" data-dojo-type="dijit.form.SimpleTextarea" rows="4" cols="50" style="width:auto;"></textarea>
         </li>
     </ul>
 </div>

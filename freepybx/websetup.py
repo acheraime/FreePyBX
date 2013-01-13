@@ -36,11 +36,12 @@ def setup_app(command, conf, vars):
     if not pylons.test.pylonsapp:
         load_environment(conf.global_conf, conf.local_conf)
 
+    Base.metadata.drop_all(bind=Session.bind)
     Base.metadata.create_all(bind=Session.bind)
 
     # Create the tables if they don't already exist        
     # uncomment and adjust for initial setup..
-    #insert_data()
+    insert_data()
     
 def insert_data():
 
@@ -66,7 +67,7 @@ def insert_data():
         Session.add(s)
 
     # Add initial admin with admin login rights
-    admin_user = AdminUser(u'admin@ipcomms.net',u'ipcomms2012',u'Admin',u'User')
+    admin_user = AdminUser(u'admin@freepybx.org',u'secretpass1',u'Admin',u'User')
     Session.add(admin_user)
 
     admin_group = AdminGroup(u'system_admin',u'System administrators')

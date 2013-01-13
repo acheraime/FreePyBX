@@ -27,12 +27,18 @@
     remedy known factual inaccuracies.
 -->
 <head>
-    <title>IP Communications</title>
+    <title>FreePyBX Communications</title>
     <style>
         body
         {
             background-color: #d1e7ff;
             font-family: sans-serif;
+
+        }
+        .dijitDialogUnderlayWrapper
+        {
+            width: 800px;
+            height: 400px;
         }
     </style>
     <link rel="stylesheet" type="text/css" href="/js/dijit/themes/claro/claro.css" />
@@ -87,48 +93,50 @@
     </script>
 </head>
 <body class="claro">
-<div dojoType="dijit.Dialog" id="formLogin" title="IP Communications Login" style="margin-top: 100px; margin-right: auto; margin-left: auto;"
-     execute="authorizeHandler();">
-    <form action="postIt" id="loginForm">
-        <table>
-            <tr>
-                <td>
-                    <label for="username">
-                        Username (Email):
-                    </label></td>
-                <td>
-                    <input dojoType="dijit.form.TextBox" type="text" name="username" id="username" />
-                </td>
-            </tr>
-            <tr>
-                <td>
-                    <label for="password">
-                        Password:
-                    </label>
-                </td>
-                <td>
-                    <input dojoType="dijit.form.TextBox" type="password" name="password" id="password"/>
-                </td>
-            </tr>
-            <tr>
-                <td>
-                    <label for="susername">
-                        Save Username:
-                    </label>
+<div style="width: 800px; height: 400px; margin: 0 auto;">
+    <div dojoType="dijit.Dialog" id="formLogin" title="FreePyBX Communications Login" style="position: relative; margin-top: -100px; margin-right: auto; margin-left: auto;"
+         execute="authorizeHandler();">
+        <form action="postIt" id="loginForm">
+            <table>
+                <tr>
+                    <td>
+                        <label for="username">
+                            Username (Email):
+                        </label></td>
+                    <td>
+                        <input dojoType="dijit.form.TextBox" type="text" name="username" id="username" />
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <label for="password">
+                            Password:
+                        </label>
+                    </td>
+                    <td>
+                        <input dojoType="dijit.form.TextBox" type="password" name="password" id="password"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <label for="susername">
+                            Save Username:
+                        </label>
 
-                </td>
-                <td>
-                    <input dojoType="dijit.form.CheckBox" name="susername" id="susername" value="true" checked="checked" />
-                </td>
-            </tr>
-            <tr>
-                <td align="center" colspan="2">
-                    <input type="submit" value=" Login " label=" Login " dojoType="dojox.form.BusyButton"
-                           busyLabel="Logging in..." timeout="6000" data-dojo-attach-point="submitNode" onclick="authorizeHandler()"/>
-                </td>
-            </tr>
-        </table>
-    </form>
+                    </td>
+                    <td>
+                        <input dojoType="dijit.form.CheckBox" name="susername" id="susername" value="true" checked="checked" />
+                    </td>
+                </tr>
+                <tr>
+                    <td align="center" colspan="2">
+                        <input type="submit" value=" Login " label=" Login " dojoType="dojox.form.BusyButton"
+                               busyLabel="Logging in..." timeout="6000" data-dojo-attach-point="submitNode" onclick="authorizeHandler()"/>
+                    </td>
+                </tr>
+            </table>
+        </form>
+    </div>
 </div>
 </body>
 </html>

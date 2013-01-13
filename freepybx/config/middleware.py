@@ -21,8 +21,6 @@
     except that You may alter any license notices to the extent required to
     remedy known factual inaccuracies.
 """
-
-
 from beaker.middleware import SessionMiddleware
 from paste.cascade import Cascade
 from paste.registry import RegistryManager

@@ -60,7 +60,7 @@ import time
 import shutil
 import cgi
 import cgitb; cgitb.enable()
-from ESL import *
+#from ESL import *
 import re
 import csv
 
@@ -435,33 +435,36 @@ class PbxController(BaseController):
         schema = UserForm()
         try:
             form_result = schema.to_python(request.params)
-            u = User()
-            u.username = form_result.get("username")
-            u.password = form_result.get("password")
-            u.first_name = form_result.get("first_name")
-            u.last_name = form_result.get("last_name")
-            u.address = form_result.get("address")
-            u.address_2 = form_result.get("address_2")
-            u.city = form_result.get("city")
-            u.state = form_result.get("state")
-            u.zip = form_result.get("zip")
-            u.tel = form_result.get("tel")
-            u.mobile = form_result.get("mobile")
-            u.active = form_result.get("active")
-            u.customer_id = session["customer_id"]
-            u.notes = form_result.get("notes")
-            u.portal_extension = form_result.get("extension")
+            user = User()
+            user.username = form_result.get("username")
+            user.password = form_result.get("password")
+            user.first_name = form_result.get("first_name")
+            user.last_name = form_result.get("last_name")
+            user.address = form_result.get("address")
+            user.address_2 = form_result.get("address_2")
+            user.city = form_result.get("city")
+            user.state = form_result.get("state")
+            user.zip = form_result.get("zip")
+            user.tel = form_result.get("tel")
+            user.mobile = form_result.get("mobile")
+            user.active = form_result.get("active")
+            user.customer_id = session["customer_id"]
+            user.notes = form_result.get("notes")
+            user.portal_extension = form_result.get("extension")
 
-            g = Group.query.filter(Group.id==form_result.get("group_id",2)).first()
-            g.users.append(u)
+            db.add(user)
+
+            g = Group.query.filter(Group.id==form_result.get("group_id", 2)).first()
+            g.users.append(user)
             db.add(g)
 
-            db.commit(); db.flush()
+            db.flush()
+            db.commit()
 
             context = PbxContext.query.filter(PbxContext.customer_id==session['customer_id']).first()
 
             em = EmailAccount()
-            e = PbxEndpoint()
+            endpoint = PbxEndpoint()
             r = PbxRoute()
             c = PbxCondition()
             s = PbxAction()
@@ -469,7 +472,7 @@ class PbxController(BaseController):
             if(session['has_crm']):
                 if len(form_result.get("email"))>0 and len(form_result.get("email_password"))>0 and len(form_result.get("email_server"))>0:
                     em = EmailAccount()
-                    em.user_id = u.id
+                    em.user_id = user.id
                     em.customer_id = session['customer_id']
                     em.email = form_result.get("email")
                     em.password = form_result.get("email_password")
@@ -496,28 +499,29 @@ class PbxController(BaseController):
                 ext_failed = True
 
             if not ext_failed:
-                e = PbxEndpoint()
-                e.auth_id = form_result.get("extension")
-                e.password = form_result.get("extension_password")
-                e.outbound_caller_id_name = context.caller_id_name
-                e.outbound_caller_id_number = context.caller_id_number
-                e.internal_caller_id_name = u.first_name + ' ' + u.last_name
-                e.internal_caller_id_number = form_result.get("extension")
-                e.user_context = context.context
-                e.force_transfer_context = context.context
-                e.user_originated = u'true'
-                e.toll_allow = u'domestic'
-                e.call_timeout = form_result.get("call_timeout", 20)
-                e.accountcode = context.caller_id_number
-                e.pbx_force_contact =  form_result.get("pbx_force_contact", u'nat-connectile-dysfunction')
-                e.vm_email = form_result.get("vm_email")
-                e.vm_password = form_result.get("vm_password")
-                e.vm_attach_email = True if form_result.get("vm_email", None) is not None else False
-                e.vm_delete = False
-                e.user_id = u.id
+                endpoint = PbxEndpoint()
+                endpoint.auth_id = form_result.get("extension")
+                endpoint.password = form_result.get("extension_password")
+                endpoint.outbound_caller_id_name = context.caller_id_name
+                endpoint.outbound_caller_id_number = context.caller_id_number
+                endpoint.internal_caller_id_name = user.name
+                endpoint.internal_caller_id_number = form_result.get("extension")
+                endpoint.user_context = context.context
+                endpoint.force_transfer_context = context.context
+                endpoint.user_originated = u'true'
+                endpoint.toll_allow = u'domestic'
+                endpoint.call_timeout = form_result.get("call_timeout", 20)
+                endpoint.accountcode = context.caller_id_number
+                endpoint.pbx_force_contact =  form_result.get("pbx_force_contact", u'nat-connectile-dysfunction')
+                endpoint.vm_email = form_result.get("vm_email")
+                endpoint.vm_password = form_result.get("vm_password")
+                endpoint.vm_attach_email = True if form_result.get("vm_email", None) is not None else False
+                endpoint.vm_delete = False
+                endpoint.user_id = user.id
 
-                db.add(e)
-                db.commit(); db.flush()
+                db.add(endpoint)
+                db.flush()
+                db.commit()
 
                 r = PbxRoute()
                 r.context = context.context
@@ -527,7 +531,7 @@ class PbxController(BaseController):
                 r.voicemail_enable = True
                 r.voicemail_ext = form_result.get("extension")
                 r.pbx_route_type_id = 1
-                r.pbx_to_id = e.id
+                r.pbx_to_id = endpoint.id
 
                 db.add(r)
                 db.commit(); db.flush()
@@ -573,7 +577,8 @@ class PbxController(BaseController):
                 s.data = u'{force_transfer_context='+context.context+'}sofia/'+str(get_profile())+'/'+form_result.get("extension")+'%'+context.context
 
                 db.add(s)
-                db.commit(); db.flush()
+                db.flush()
+                db.commit()
 
         except validators.Invalid, error:
             db.remove()
@@ -869,7 +874,7 @@ class PbxController(BaseController):
             e.device_type_id = form_result.get('device_type_id') if form_result.get('device_type_id') else 0
             e.include_xml_directory = True if form_result.get('include_xml_directory')=="true" else False
             e.mac = form_result.get('mac', None)
-            e.calling_rule_id = form_result.get('calling_rule_id')
+            e.calling_rule_id = 0 if form_result.get('calling_rule_id', None) is not None else int(form_result.get('calling_rule_id', None))
 
             db.add(e)
             db.commit(); db.flush()
@@ -2600,22 +2605,23 @@ class PbxController(BaseController):
     @authorize(logged_in)
     def edit_customer(self):
         schema = CustomerForm()
+
         try:
             form_result = schema.to_python(request.params)
-            co = Customer.query.filter(Customer.id==session['customer_id']).first()
-            co.tel = form_result.get('tel')
-            co.address = form_result.get('address')
-            co.address_2 = form_result.get('address_2')
-            co.city = form_result.get('city')
-            co.state = form_result.get('state')
-            co.zip = form_result.get('zip')
-            co.url = form_result.get('url')
-            co.email = form_result.get('email')
-            co.contact_name = form_result.get('contact_name')
-            co.contact_phone = form_result.get('contact_phone')
-            co.contact_mobile = form_result.get('contact_mobile')
-            co.contact_title = form_result.get('contact_title')
-            co.contact_email = form_result.get('contact_email')
+            customer = Customer.query.filter(Customer.id==session['customer_id']).first()
+            customer.tel = form_result.get('tel')
+            customer.address = form_result.get('address')
+            customer.address_2 = form_result.get('address_2')
+            customer.city = form_result.get('city')
+            customer.state = form_result.get('state')
+            customer.zip = form_result.get('zip')
+            customer.url = form_result.get('url')
+            customer.email = form_result.get('email')
+            customer.contact_name = form_result.get('contact_name')
+            customer.contact_phone = form_result.get('contact_phone')
+            customer.contact_mobile = form_result.get('contact_mobile')
+            customer.contact_title = form_result.get('contact_title')
+            customer.contact_email = form_result.get('contact_email')
 
             db.commit(); db.flush()
 
@@ -2625,6 +2631,7 @@ class PbxController(BaseController):
 
         return "Successfully edited customer."
 
+    @jsonify
     @authorize(logged_in)
     def avail_findme_endpoints(self):
         items=[]

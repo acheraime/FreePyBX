@@ -43,8 +43,6 @@ import cgitb; cgitb.enable()
 
 log = logging.getLogger(__name__)
 
-
-
 def authenticate(username, password):
     auth_user = User.query.filter(User.username==username).first()
     if not auth_user:
@@ -93,7 +91,7 @@ def authenticate(username, password):
     session['group_id'] = auth_user.group_id
     session["user"] = auth_user     
     session.save()
-    auth_user.register_login(username, session, request)  
+    auth_user.register_login(username, session, request)
     db.commit()
     db.flush()
     
@@ -121,7 +119,7 @@ def authenticate_admin(username, password):
     session["name"] = auth_user.name
     session['user_id'] = auth_user.id
 
-    auth_user.register_login(username, session, request)  
+    auth_user.register_login(username, session, request)
     db.commit()
     db.flush()
     session.save()

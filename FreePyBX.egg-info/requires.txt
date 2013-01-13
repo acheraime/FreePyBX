@@ -7,5 +7,4 @@ AmFast
 PyAMF
 pytz
 zope.sqlalchemy
-pyamf
 Twisted

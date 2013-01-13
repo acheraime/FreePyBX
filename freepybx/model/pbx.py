@@ -46,7 +46,7 @@ class PbxContext(Base):
 
     def __init__(self, customer_id=None, domain=None, context=None,
                  gateway=None, profile=None, caller_id_name=None,
-                 caller_id_number=None ):
+                 caller_id_number=None):
         self.customer_id = customer_id
         self.domain = domain
         self.context = context
@@ -543,12 +543,12 @@ class PbxEndpoint(Base):
     id = Column(Integer, autoincrement=True, primary_key=True)
     auth_id = Column(Unicode(64), nullable=False)
     password = Column(Unicode(64), nullable=False, default=u"O9876543$")
-    outbound_caller_id_name = Column(Unicode(64), nullable=False, default=u"Anonymous")
-    outbound_caller_id_number = Column(Unicode(64), nullable=False)
-    internal_caller_id_name = Column(Unicode(64), nullable=False, default=u"Anonymous")
+    outbound_caller_id_name = Column(Unicode(64), nullable=False, default="Unknown")
+    outbound_caller_id_number = Column(Unicode(64), nullable=False, default="0000000000")
+    internal_caller_id_name = Column(Unicode(64), nullable=False, default=u"Unknown")
     internal_caller_id_number = Column(Unicode(64), nullable=False, default=auth_id)
-    user_context = Column(Unicode(64), nullable=False, default=u"sip.ipcomms.net")
-    force_transfer_context = Column(Unicode(64), nullable=False, default=u"sip.ipcomms.net")
+    user_context = Column(Unicode(64), nullable=False, default=u"sip.mydomain.net")
+    force_transfer_context = Column(Unicode(64), nullable=False, default=u"sip.mydomain.net")
     user_originated = Column(Unicode(64), nullable=False, default=True)
     mac = Column(Unicode(12))
     timezone = Column(Unicode(12))
@@ -576,6 +576,18 @@ class PbxEndpoint(Base):
     record_outbound_calls = Column(Boolean, default=False)
     record_inbound_calls = Column(Boolean, default=False)
     user_id = Column(Integer, ForeignKey('users.id', onupdate="CASCADE", ondelete="CASCADE"))
+
+    def cid_name(self):
+        try:
+            return cls.query.filter_by(context=self.user_context).first().caller_id_name
+        except:
+            return "Unknown"
+
+    def cid_num(self):
+        try:
+            return cls.query.filter_by(context=self.user_context).first().caller_id_number
+        except:
+            return "0000000000"
 
     def __str__(self):
         return self.id
@@ -819,6 +831,7 @@ class PbxCallingRule(Base):
     __tablename__='pbx_calling_rules'
 
     query = Session.query_property()
+
     id = Column(Integer, autoincrement=True, primary_key=True)
     name = Column(Unicode(64))
     

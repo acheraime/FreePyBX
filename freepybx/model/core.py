@@ -181,8 +181,8 @@ class Customer(Base):
     id = Column(Integer, autoincrement=True, primary_key=True)
     name = Column(Unicode(100),nullable=False)
     customer_type_id = Column(Integer, default=1)
-    pbx_profile_id = Column(Integer, ForeignKey('pbx_profiles.id', onupdate="CASCADE", ondelete="CASCADE"))
-    tax_id =  Column(Unicode(100))
+    pbx_profile_id = Column(Integer, ForeignKey('pbx_profiles.id',
+        onupdate="CASCADE", ondelete="CASCADE"))
     start_date = Column(DateTime,default=datetime.date(datetime.now()))
     end_date = Column(DateTime)
     last_login = Column(DateTime,default=datetime.date(datetime.now()))
@@ -206,28 +206,28 @@ class Customer(Base):
     has_call_center = Column(Boolean, default=False)
     notes = Column(UnicodeText)
     default_gateway = Column(Unicode(64))
+    hard_channel_limit = Column(Integer, default=5)
     inbound_channel_limit = Column(Integer, default=5)
     outbound_channel_limit = Column(Integer, default=5)
     channel_audio = Column(Unicode(255), nullable=True)
 
-    customer_users = relationship("User", backref="users")
-    contexts = relationship("PbxContext", backref="pbx_contexts")
-    e911_addresses = relationship("e911Address", backref='e911_addresses')
-    customer_notes = relationship("CustomerNote", backref='customer_notes')
-    tickets = relationship("Ticket", backref='tickets')
-
-    customer_contexts = relationship('PbxContext', secondary=customer_contexts, backref='customers')
-
+    users = relationship("User", backref="customers")
+    pbx_contexts = relationship('PbxContext', secondary=customer_contexts, backref='customers')
+    customer_notes = relationship("CustomerNote", backref='customers')
+    tickets = relationship("Ticket", backref='customers')
+    e911_addresses = relationship("e911Address", backref='customers')
 
     def __init__(self, name='Unknown'):
         self.name = name
 
     def __repr__(self):
-        return "<Customer({0},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10},{11},{12},{13},{14},{15},{16},{17},{18},{19},{20},{21},{22},{23},{24},{25},{26},{27}>".format(
-            self.id,self.name,self.customer_type_id,self.pbx_profile_id,self.tax_id,self.start_date,self.end_date,self.last_login,
+        return "<Customer({0},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10},{11},{12},{13},{14},{15},{16},{17},{18},{19},{20},{21}," \
+               "{22},{23},{24},{25},{26},{27},{28},{29},{30}>".format(
+            self.id,self.name,self.customer_type_id,self.pbx_profile_id,self.start_date,self.end_date,self.last_login,
             self.email,self.address,self.address_2,self.city,self.state,self.zip,self.url,self.tel,self.active,self.lat_lon,
             self.context,self.contact_phone,self.contact_mobile,self.contact_name,self.contact_title,self.contact_email,
-            self.has_crm,self.has_call_center,self.notes,self.default_gateway)
+            self.has_crm,self.has_call_center,self.notes,self.default_gateway,self.hard_channel_limit,self.inbound_channel_limit,
+            self.outbound_channel_limit,self.channel_audio)
 
     def __str__(self):
         return self.name
@@ -297,12 +297,16 @@ class User(Base):
         g = db.execute("SELECT group_id FROM user_groups WHERE user_id = :user_id", {'user_id': self.id}).first()
         return g[0]
 
+    @property
+    def context(self):
+        return PbxContext.query.filter_by(customer_id=self.customer_id).first().context
+
     def get_name(self):
         return User.first_name + ' ' + User.last_name
 
     @property
     def name(self):
-        return User.first_name + ' ' + User.last_name
+        return str(self.first_name or '') + ' ' + str(self.last_name or '')
 
     def get_gateway(self):
         gw = db.query(PbxContext.gateway).join(Customer).join(User).filter(User.customer_id==Customer.id).first()
@@ -336,7 +340,7 @@ class User(Base):
             now = datetime.now()
             user.last_login = now
             user.session_id = session.id
-            user.remote_addr = request.environ["HTTP_REMOTE_EU"]
+            user.remote_addr = request.environ["REMOTE_ADDR"]
             db.commit()
             db.flush()
 
@@ -519,7 +523,8 @@ class Ticket(Base):
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     customer_id =  Column(Integer, ForeignKey('customers.id', onupdate="CASCADE", ondelete="CASCADE"))
-    opened_by = Column(Integer, ForeignKey('users.id', onupdate="CASCADE", ondelete="CASCADE"))
+    opened_by = Column(Integer)
+    assigned_to = Column(Integer)
     ticket_status_id = Column(Integer, ForeignKey('ticket_statuses.id', onupdate="CASCADE", ondelete="CASCADE"))
     ticket_priority_id =  Column(Integer, ForeignKey('ticket_priorities.id', onupdate="CASCADE", ondelete="CASCADE"))
     ticket_type_id = Column(Integer, ForeignKey('ticket_types.id', onupdate="CASCADE", ondelete="CASCADE"))

@@ -564,8 +564,6 @@ class CustomerForm(formencode.Schema):
 class CustomerEditForm(formencode.Schema):
     allow_extra_fields = True
     ignore_key_missing = True
-    first_name = validators.String(not_empty=True)
-    last_name = validators.String(not_empty=True)
     address = validators.String(not_empty=False)
     address_2 = validators.String(not_empty=False)
     city = validators.String(not_empty=False)
@@ -656,8 +654,7 @@ class ProfileEditForm(formencode.Schema):
 class CustomerForm(formencode.Schema):
     allow_extra_fields = True
     ignore_key_missing = True
-    first_name = validators.String(not_empty=True)
-    last_name = validators.String(not_empty=True)
+    customer_name = validators.String(not_empty=True)
     address = validators.String(not_empty=False)
     address_2 = validators.String(not_empty=False)
     city = validators.String(not_empty=False)
@@ -721,7 +718,7 @@ class GroupEditForm(formencode.Schema):
 
 class DIDForm(formencode.Schema):
     allow_extra_fields = True
-    did_name = formencode.All(UniqueDID(), validators.MinLength(10),\
+    cust_add_did = formencode.All(UniqueDID(), validators.MinLength(10),\
         validators.String(not_empty=True),\
         validators.MaxLength(15))
     customer_name = validators.String(not_empty=True)

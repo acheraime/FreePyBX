@@ -47,7 +47,7 @@
                 load: function(res) {
                     if (res.indexOf("Error") == -1) {
                         new voiceware.notice.Notice({message: res});
-                        dijit.byId("mainContent").set("href", "/pbx/compose/blacklisted.html");
+                        dijit.byId("mainContent").set("href", "/pbx/blacklisted.html");
                     } else {
                         new voiceware.notice.Error({message: res});
                         dijit.byId("mainContent").set("href", "/pbx/blacklist_add.html");

@@ -21,42 +21,44 @@
     except that You may alter any license notices to the extent required to
     remedy known factual inaccuracies.
 """
+import os
 
+import formencode
+import shutil
+import urllib
 import logging
+import cgitb; cgitb.enable()
+
+from pylons import config
 from pylons import request, response, session, tmpl_context as c, url
 from pylons.controllers.util import abort, redirect
+from pylons.decorators.rest import restrict
+from pylons.decorators import validate, jsonify
+
+import formencode
+from formencode import validators
+
 from freepybx.lib.base import BaseController, render
 from freepybx.model import meta
 from freepybx.model.meta import *
 from freepybx.model.meta import Session as db
-from genshi import HTML
-from pylons import config
-from pylons.decorators.rest import restrict
-import formencode
-from formencode import validators
-from freepybx.lib.pymap.imap import Pymap
 from freepybx.lib.auth import *
 from freepybx.lib.forms import *
 from freepybx.lib.util import *
 from freepybx.lib.util import PbxError, DataInputError, PbxEncoder
 from freepybx.lib.validators import *
+
+from genshi import HTML
 from decorator import decorator
-from pylons.decorators.rest import restrict
-import formencode
-from formencode import validators
-from pylons.decorators import validate
-from simplejson import loads, dumps
-import simplejson as json
-import os
+
 import simplejson as json
 from simplejson import loads, dumps
-import cgitb;
-import shutil
 
 
-cgitb.enable()
-import urllib
+from sqlalchemy import Date, cast, desc, asc
+from sqlalchemy.orm import join
 
+# Import Auth decorators etc.
 logged_in = IsLoggedIn()
 super_user = IsSuperUser()
 credentials = HasCredential(object)
@@ -68,13 +70,16 @@ fs_profile = config['app_conf']['fs_profile']
 
 class CredentialError(Exception):
     message=""
-
     def __init__(self, message=None):
         Exception.__init__(self, message or self.message)
 
 class AdminController(BaseController):
-    """ this is a test of the comment system """
+    """Admin controller:
 
+    This admin module is reponsible for the majority of the applications
+    adminstrative functionality and is mainly for restricted use.
+
+    """
     @authorize(super_user)
     def index(self, **kw):
         c.sid = session.id
@@ -129,6 +134,32 @@ class AdminController(BaseController):
         return render('admin/admin.html')
 
     @authorize(super_user)
+    def users(self):
+        items=[]
+        for row in User.query.order_by(asc(User.id)).all():
+            exts = []
+            for ext in PbxEndpoint.query.filter(PbxEndpoint.user_id==row.id).filter_by(user_context=row.context).all():
+                exts.append(ext.auth_id)
+            if not len(exts) > 0:
+                extension = "No Extension"
+            else:
+                extension = ", ".join(exts)
+            items.append({'id': row.id, 'extension': extension, 'username': row.username, 'password': row.password, 'first_name': row.first_name,
+                          'name': row.first_name +' '+row.last_name, 'context': row.context,
+                          'last_name': row.last_name, 'address': row.address, 'address_2': row.address_2, 'city': row.city, 'state': row.state, 'zip': row.zip,
+                          'tel': row.tel, 'mobile': row.mobile, 'notes': row.notes, 'created': row.created.strftime("%m/%d/%Y %I:%M:%S %p"), 'updated': row.updated.strftime("%m/%d/%Y %I:%M:%S %p"), 'active': row.active,
+                          'group_id': row.group_id, 'last_login': row.last_login.strftime("%m/%d/%Y %I:%M:%S %p"), 'remote_addr': row.remote_addr, 'session_id': row.session_id, 'customer_id': row.customer_id})
+
+        db.remove()
+
+        out = dict({'identifier': 'id', 'label': 'name', 'items': items})
+        response = make_response(out)
+        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
+
+        return response(request.environ, self.start_response)
+
+
+    @authorize(super_user)
     def customers(self):
         items=[]
         for row in Customer.query.all():
@@ -140,36 +171,43 @@ class AdminController(BaseController):
 
         return response(request.environ, self.start_response)
 
+    @jsonify
     @authorize(super_user)
     def customer_store(self):
         items=[]
         for row in Customer.query.all():
             items.append({'id': row.id, 'name': row.name, 'active': row.active, 'tel': row.tel})
 
-        out = dict({'identifier': 'id', 'label': 'name', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json'),]
+        return {'identifier': 'id', 'label': 'name', 'items': items}
 
-        return response(request.environ, self.start_response)
-
-
+    @jsonify
     @authorize(super_user)
     def customer_by_id(self, id, **kw):
         items=[]
-        row = Customer.query.filter(Customer.id==id).first()
-        profile = PbxProfile.query.filter_by(id=row.pbx_profile_id).first()
-        items.append({'id': row.id, 'name': row.name,  'profile': profile.name, 'email': row.email, 'address': row.address, 'address_2': row.address_2,
-                      'city': row.city, 'state': row.state, 'zip': row.zip, 'default_gateway': row.default_gateway,
-                      'tel': row.tel, 'url': row.url, 'active': row.active, 'context': row.context, 'has_crm': row.has_crm,
-                      'contact_name': row.contact_name, 'contact_phone': row.contact_phone, 'contact_mobile': row.contact_mobile,
-                      'contact_title': row.contact_title, 'contact_email': row.contact_email, 'notes': row.notes, 'pbx_profile_id': row.pbx_profile_id,
-                      'inbound_channel_limit': row.inbound_channel_limit, 'outbound_channel_limit': row.outbound_channel_limit, 'channel_audio': row.channel_audio})
 
-        out = dict({'identifier': 'id', 'label': 'name', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json'),]
+        try:
+            customer = Customer.query.filter(Customer.id==id).first()
 
-        return response(request.environ, self.start_response)
+            if customer is None:
+                raise Exception("No customer with that ID.")
+
+            profile = PbxProfile.query.filter_by(id=customer.pbx_profile_id).first()
+
+            items.append({'id': customer.id, 'name': customer.name,  'profile': profile.name, 'email': customer.email,
+                          'address': customer.address, 'address_2': customer.address_2,
+                          'city': customer.city, 'state': customer.state, 'zip': customer.zip, 'default_gateway': customer.default_gateway,
+                          'tel': customer.tel, 'url': customer.url, 'active': customer.active, 'context': customer.context,
+                          'has_crm': customer.has_crm, 'has_call_center': customer.has_call_center,
+                          'contact_name': customer.contact_name, 'contact_phone': customer.contact_phone, 'contact_mobile': customer.contact_mobile,
+                          'contact_title': customer.contact_title, 'contact_email': customer.contact_email, 'notes': customer.notes,
+                          'pbx_profile_id': customer.pbx_profile_id, 'inbound_channel_limit': customer.inbound_channel_limit,
+                          'outbound_channel_limit': customer.outbound_channel_limit,
+                          'hard_channel_limit': customer.hard_channel_limit, 'channel_audio': customer.channel_audio})
+
+            return {'identifier': 'id', 'label': 'name', 'items': items}
+
+        except Exception, e:
+            return {'identifier': 'id', 'label': 'name', 'items': [], 'error': str(e)}
 
     @authorize(super_user)
     def update_customer_grid(self, **kw):
@@ -193,54 +231,52 @@ class AdminController(BaseController):
 
     @authorize(super_user)
     def add_customer(self):
-
         schema = CustomerForm()
-
         try:
             form_result = schema.to_python(request.params)
-            co = Customer()
-            co.name = form_result.get('name')
-            co.tel = form_result.get('tel')
-            co.address = form_result.get('address')
-            co.address_2 = form_result.get('address_2')
-            co.city = form_result.get('city')
-            co.state = form_result.get('state')
-            co.zip = form_result.get('zip')
-            co.url = form_result.get('url')
-            co.context = form_result.get('context')
-            co.email = form_result.get('contact_email')
-            co.contact_name = form_result.get('contact_name')
-            co.contact_phone = form_result.get('contact_phone')
-            co.contact_mobile = form_result.get('contact_mobile')
-            co.contact_title = form_result.get('contact_title')
-            co.contact_email = form_result.get('contact_email')
-            co.active = True if form_result.get('active')=="true" else False
-            co.has_crm = True if form_result.get('has_crm')=="true" else False
-            co.has_call_center = True if form_result.get('has_call_center')=="true" else False
-            co.default_gateway = form_result.get('default_gateway')
-            co.pbx_profile_id = form_result.get('pbx_profile_id')
-            co.inbound_channel_limit = form_result.get('inbound_channel_limit')
-            co.channel_audio = form_result.get('channel_audio')
+            customer = Customer()
+            customer.name = form_result.get('name')
+            customer.tel = form_result.get('cust_tel')
+            customer.address = form_result.get('address')
+            customer.address_2 = form_result.get('address_2')
+            customer.city = form_result.get('city')
+            customer.state = form_result.get('state')
+            customer.zip = form_result.get('zip')
+            customer.url = form_result.get('url')
+            customer.context = form_result.get('context')
+            customer.email = form_result.get('contact_email')
+            customer.contact_name = form_result.get('contact_name')
+            customer.contact_phone = form_result.get('contact_phone')
+            customer.contact_mobile = form_result.get('contact_mobile')
+            customer.contact_title = form_result.get('contact_title')
+            customer.contact_email = form_result.get('contact_email')
+            customer.active = True if form_result.get('active')=="true" else False
+            customer.has_crm = True if form_result.get('has_crm')=="true" else False
+            customer.has_call_center = True if form_result.get('has_call_center')=="true" else False
+            customer.default_gateway = form_result.get('default_gateway')
+            customer.pbx_profile_id = form_result.get('pbx_profile_id')
+            customer.inbound_channel_limit = form_result.get('inbound_channel_limit')
+            customer.channel_audio = form_result.get('channel_audio')
 
             try:
-                os.makedirs(fs_vm_dir+str(co.context)+'/recordings')
-                os.makedirs(fs_vm_dir+str(co.context)+'/system/recordings')
-                os.makedirs(fs_vm_dir+str(co.context)+'/queue-recordings')
-                os.makedirs(fs_vm_dir+str(co.context)+'/extension-recordings')
-                os.makedirs(fs_vm_dir+str(co.context)+'/faxes')
+                os.makedirs(fs_vm_dir+str(customer.context)+'/recordings')
+                os.makedirs(fs_vm_dir+str(customer.context)+'/system/recordings')
+                os.makedirs(fs_vm_dir+str(customer.context)+'/queue-recordings')
+                os.makedirs(fs_vm_dir+str(customer.context)+'/extension-recordings')
+                os.makedirs(fs_vm_dir+str(customer.context)+'/faxes')
             except:
                 pass
 
-            db.add(co)
+            db.add(customer)
             db.commit()
 
-            con = PbxContext(co.id, form_result.get('domain'), form_result.get('context'), form_result.get('default_gateway'),
-                co.profile, co.name, form_result.get('did'))
+            context = PbxContext(customer.id, form_result.get('domain'), form_result.get('context'), form_result.get('default_gateway'),
+                customer.profile, customer.name, form_result.get('did', customer.name, customer.tel))
 
-            db.add(con)
-            co.customer_contexts.append(con)
+            db.add(context)
+            customer.pbx_contexts.append(context)
 
-            db.add(PbxDid(form_result.get('did'), co.id,
+            db.add(PbxDid(form_result.get('cust_add_did'), customer.id,
                 form_result.get('context'), form_result.get('domain'), form_result.get('t38', False), form_result.get('e911', False),
                 form_result.get('cnam', False), True))
 
@@ -268,44 +304,43 @@ class AdminController(BaseController):
 
     @authorize(super_user)
     def edit_customer(self):
-
         schema = CustomerEditForm()
-
         try:
             form_result = schema.to_python(request.params)
-            co = Customer.query.filter(Customer.id==form_result.get('id')).first()
-            co.tel = form_result.get('tel')
-            co.address = form_result.get('address')
-            co.address_2 = form_result.get('address_2')
-            co.city = form_result.get('city')
-            co.state = form_result.get('state')
-            co.zip = form_result.get('zip')
-            co.url = form_result.get('url')
-            co.email = form_result.get('contact_email')
-            co.contact_name = form_result.get('contact_name')
-            co.contact_phone = form_result.get('contact_phone')
-            co.contact_mobile = form_result.get('contact_mobile')
-            co.contact_title = form_result.get('contact_title')
-            co.contact_email = form_result.get('contact_email')
-            co.active = True if form_result.get('active')=="true" else False
-            co.has_crm = True if form_result.get('has_crm')=="true" else False
-            co.has_call_center = True if form_result.get('has_call_center')=="true" else False
-            co.default_gateway = form_result.get('default_gateway')
-            co.pbx_profile_id = form_result.get('pbx_profile_id')
-            co.inbound_channel_limit = form_result.get('inbound_channel_limit')
-            co.channel_audio = form_result.get('channel_audio')
+            customer = Customer.query.filter_by(id=form_result.get('edit_customer_id')).first()
+            customer.name = form_result.get('customer_name')
+            customer.tel = form_result.get('cust_tel')
+            customer.address = form_result.get('address')
+            customer.address_2 = form_result.get('address_2')
+            customer.city = form_result.get('city')
+            customer.state = form_result.get('state')
+            customer.zip = form_result.get('zip')
+            customer.url = form_result.get('url')
+            customer.email = form_result.get('contact_email')
+            customer.contact_name = form_result.get('contact_name')
+            customer.contact_phone = form_result.get('contact_phone')
+            customer.contact_mobile = form_result.get('contact_mobile')
+            customer.contact_title = form_result.get('contact_title')
+            customer.contact_email = form_result.get('contact_email')
+            customer.active = True if form_result.get('active')=="true" else False
+            customer.has_crm = True if form_result.get('find_me')=="true" else False
+            customer.has_call_center = True if form_result.get('has_call_center')=="true" else False
+            customer.default_gateway = form_result.get('default_gateway')
+            customer.pbx_profile_id = form_result.get('pbx_profile_id')
+            customer.hard_channel_limit = form_result.get('hard_channel_limit')
+            customer.inbound_channel_limit = form_result.get('inbound_channel_limit')
+            customer.outbound_channel_limit = form_result.get('outbound_channel_limit')
+            customer.channel_audio = form_result.get('channel_audio')
 
-            db.add(co)
-
-            db.commit()
             db.flush()
+            db.commit()
             db.remove()
+
+            return "Successfully edited customer."
 
         except validators.Invalid, error:
             db.remove()
             return 'Error: %s' % error
-
-        return "Successfully edited customer."
 
     @authorize(super_user)
     def update_customer_grid(self, **kw):
@@ -315,7 +350,7 @@ class AdminController(BaseController):
 
             for i in w['modified']:
                 co = Customer.query.filter_by(id=i['id']).first()
-                co.active = i['active']
+                customer.active = i['active']
 
                 db.commit()
                 db.flush()
@@ -777,8 +812,8 @@ class AdminController(BaseController):
             form_result = schema.to_python(request.params)
             co = Customer.query.filter_by(name=form_result.get('customer_name', None)).first()
             if co:
-                db.add(PbxDid(form_result.get('did_name', None), co.id,
-                    co.context, co.context, form_result.get('t38', False), form_result.get('e911', False),
+                db.add(PbxDid(form_result.get('did_name', None), customer.id,
+                    customer.context, customer.context, form_result.get('t38', False), form_result.get('e911', False),
                     form_result.get('cnam', False),form_result.get('active', False)))
 
                 db.commit()
@@ -802,19 +837,19 @@ class AdminController(BaseController):
             for i in w['modified']:
 
                 if i['customer_name'].isdigit():
-                    co = Customer.query.filter_by(id=i['customer_name']).first()
+                    customer = Customer.query.filter_by(id=i['customer_name']).first()
                 else:
-                    co = Customer.query.filter_by(name=i['customer_name']).first()
+                    customer = Customer.query.filter_by(name=i['customer_name']).first()
 
-                sd = PbxDid.query.filter(PbxDid.did==i['did']).first()
-                sd.customer_id = co.id
-                sd.context = co.context
-                sd.domain = co.context
-                sd.t38 = i['t38']
-                sd.cnam = i['cnam']
-                sd.e911 = i['e911']
-                sd.pbx_route_id = 0
-                sd.active = i['active']
+                did = PbxDid.query.filter(PbxDid.did==i['did']).first()
+                did.customer_id = customer.id
+                did.context = customer.context
+                did.domain = customer.context
+                did.t38 = i['t38']
+                did.cnam = i['cnam']
+                did.e911 = i['e911']
+                did.pbx_route_id = 0
+                did.active = i['active']
 
                 db.commit()
                 db.flush()
@@ -879,19 +914,21 @@ class AdminController(BaseController):
 
         return response(request.environ, self.start_response)
 
+    @jsonify
     @authorize(super_user)
     def context_by_id(self, id, **kw):
         items=[]
-        row = PbxContext.query.filter(PbxContext.id==id).first()
-        customer = Customer.query.filter(Customer.id==row.customer_id).first()
-        items.append({'id': row.id, 'context': row.context, 'profile': row.profile, 'caller_id_name': row.caller_id_name,
-                      'caller_id_number': row.caller_id_number, 'customer_name': customer.name, 'gateway': row.gateway})
+        try:
+            row = PbxContext.query.filter(PbxContext.id==id).first()
+            customer = Customer.query.filter(Customer.id==row.customer_id).first()
+            items.append({'id': row.id, 'context': row.context, 'profile': row.profile, 'caller_id_name': row.caller_id_name,
+                          'caller_id_number': row.caller_id_number, 'customer_name': customer.name, 'gateway': row.gateway})
 
-        out = dict({'identifier': 'id', 'label': 'name', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json'),]
+            return {'identifier': 'id', 'label': 'name', 'items': items}
 
-        return response(request.environ, self.start_response)
+        except Exception, e:
+            log.debug("Excepted: %s" % e)
+            return {'identifier': 'id', 'label': 'name', 'items': [], 'error': str(e)}
 
     @authorize(super_user)
     def update_context_grid(self, **kw):
@@ -934,18 +971,19 @@ class AdminController(BaseController):
         try:
             form_result = schema.to_python(request.params)
 
-            sc = PbxContext()
+            context = PbxContext()
 
-            sc.customer_id = form_result.get('customer_id')
-            sc.profile = form_result.get('profile')
-            sc.domain = form_result.get('context')
-            sc.context = form_result.get('context')
-            sc.caller_id_name = form_result.get('caller_id_name')
-            sc.caller_id_number = form_result.get('caller_id_number')
-            sc.gateway = u'default'
+            context.customer_id = form_result.get('customer_id')
+            context.profile = form_result.get('profile')
+            context.domain = form_result.get('context')
+            context.context = form_result.get('context')
+            context.caller_id_name = form_result.get('caller_id_name')
+            context.caller_id_number = form_result.get('caller_id_number')
+            context.gateway = u'default'
 
-            db.add(sc)
+            db.add(context)
             db.commit()
+
             db.flush()
             db.remove()
 
@@ -962,16 +1000,16 @@ class AdminController(BaseController):
         try:
             form_result = schema.to_python(request.params)
 
-            sc = PbxContext.query.filter(PbxContext.id==form_result.get('id')).first()
+            context = PbxContext.query.filter(PbxContext.id==form_result.get('id')).first()
 
-            sc.profile = form_result.get('profile')
-            sc.caller_id_name = form_result.get('caller_id_name')
-            sc.caller_id_number = form_result.get('caller_id_number')
-            sc.gateway = form_result.get('gateway')
+            context.profile = form_result.get('profile')
+            context.caller_id_name = form_result.get('caller_id_name')
+            context.caller_id_number = form_result.get('caller_id_number')
+            context.gateway = form_result.get('gateway')
 
-            db.add(sc)
-            db.commit()
+            db.add(context)
             db.flush()
+            db.commit()
             db.remove()
 
         except validators.Invalid, error:
@@ -983,7 +1021,7 @@ class AdminController(BaseController):
     @authorize(super_user)
     def admins(self, **kw):
         items=[]
-        for row in  AdminUser.query.all():
+        for row in AdminUser.query.all():
             for r in row.permissions:
                 log.debug("%s" % r)
             items.append({'id': row.id, 'name': row.first_name+' '+row.last_name, 'username': row.username, 'password': row.password, 'active': row.active})
@@ -1101,12 +1139,15 @@ class AdminController(BaseController):
     def cust_admins(self, **kw):
         items=[]
         perms=[]
+
         for row in User.query.all():
             for i in row.permissions:
                 perms.append(str(i))
+
             if 'pbx_admin' in perms:
-                items.append({'id': row.id, 'customer_name': row.get_customer_name(row.customer_id), 'active': row.active,
-                              'perms': ','.join(perms), 'name': row.first_name+' '+row.last_name, 'first_name': row.first_name,
+                items.append({'id': row.id, 'customer_name': row.get_customer_name(row.customer_id),
+                              'active': row.active, 'perms': ','.join(perms),
+                              'name': row.first_name+' '+row.last_name, 'first_name': row.first_name,
                               'last_name': row.last_name, 'username': row.username, 'password': row.password})
             perms=[]
 
@@ -1145,10 +1186,9 @@ class AdminController(BaseController):
 
             g = Group.query.filter(Group.name=='pbx_admin').first()
             g.users.append(u)
-            db.add(u)
 
-            db.commit()
             db.flush()
+            db.commit()
             db.remove()
 
         except validators.Invalid, error:

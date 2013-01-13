@@ -408,6 +408,10 @@
             Extensions
         </div>
         <div dojoType="dijit.MenuItem" iconClass="virtualIcon"
+             onClick='dijit.byId("mainContent").set("href", "/pbx/ivr_list.html");'>
+            Auto Attendant (IVR)
+        </div>
+        <div dojoType="dijit.MenuItem" iconClass="virtualIcon"
         onClick='dijit.byId("mainContent").set("href", "/pbx/virtual_extensions_list.html");'>
             Virtual Extensions
         </div>
@@ -459,24 +463,13 @@
             Text to Speech
         </div>
         <div dojoType="dijit.MenuSeparator"></div>
-        <div dojoType="dijit.PopupMenuItem">
-            <span> Virtual Receptionist </span>
-            <div dojoType="dijit.Menu" id="submenu1">
-                <div dojoType="dijit.MenuItem" onClick='dijit.byId("mainContent").set("href", "/pbx/ivr_list.html");'>
-                    Automated Attendant (IVR)
-                </div>
-            </div>
-        </div>
-    </div>
-    <div id="mini_help">
-        No help to display in this category..
     </div>
 </div>
 </py:def>
 
 <py:def function="footer_pane">
 <div dojoType="dijit.layout.ContentPane" region="bottom" id="footer" align="left">
-    <span>IP Communications Center</span>
+    <span>FreePyBX Communications Center</span>
 </div>
 </py:def>
 

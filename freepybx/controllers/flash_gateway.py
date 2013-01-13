@@ -34,7 +34,12 @@ from freepybx import model
 from freepybx.model import meta
 from freepybx.model.meta import *
 from freepybx.model.meta import Session as db
-from ESL import *
+
+# In case we are just debugging without freeswitch.
+try:
+    from ESL import *
+except:
+    pass
 
 from amfast.decoder import Decoder
 from amfast.encoder import Encoder
@@ -172,30 +177,35 @@ class VoiceWareService(object):
         ep_stats = []
         user = User.query.filter_by(session_id=sid).first()
 
-        if user:
-            context = user.get_context()
-        else:
-            raise Exception("No session id in db matching the user calling this method.")
+        try:
+            if user:
+                context = user.get_context()
+            else:
+                raise Exception("No session id in db matching the user calling this method.")
 
-        for r in db.execute("SELECT DISTINCT users.first_name, users.last_name, users.id, users.customer_id, "
-                            "customers.context AS context, users.portal_extension, "
-                            "users.tel, users.mobile, users.username, sip_dialogs.uuid AS uuid "
-                            "FROM users "
-                            "INNER JOIN customers ON users.customer_id = customers.id "
-                            "LEFT JOIN sip_dialogs ON sip_dialogs.presence_id = users.portal_extension || '@' || customers.context "
-                            "WHERE customers.context = :context ORDER BY users.id", {'context': context}):
+            for r in db.execute("SELECT DISTINCT users.first_name, users.last_name, users.id, users.customer_id, "
+                                "customers.context AS context, users.portal_extension, "
+                                "users.tel, users.mobile, users.username, sip_dialogs.uuid AS uuid "
+                                "FROM users "
+                                "INNER JOIN customers ON users.customer_id = customers.id "
+                                "LEFT JOIN sip_dialogs ON sip_dialogs.presence_id = users.portal_extension || '@' || customers.context "
+                                "WHERE customers.context = :context ORDER BY users.id", {'context': context}):
 
-            for pbx_reg in PbxRegistration.query.filter(PbxRegistration.sip_realm==context).filter(PbxRegistration.sip_user==r[5]).all():
-                ep_stats.append({'ip': pbx_reg.network_ip, 'port':pbx_reg.network_port})
+                for pbx_reg in PbxRegistration.query.filter(PbxRegistration.sip_realm==context).filter(PbxRegistration.sip_user==r[5]).all():
+                    ep_stats.append({'ip': pbx_reg.network_ip, 'port':pbx_reg.network_port})
 
-            is_online = True if len(ep_stats) > 0 else False
-            ep_stats = []
+                is_online = True if len(ep_stats) > 0 else False
+                ep_stats = []
 
-            # make_broker_user(name, id, customer_id, email, tel, mobile, ext, uuid, is_online):
-            users.append(make_broker_user(r[0]+' '+r[1], r[2], r[3], r[8], r[6], r[7], r[5], r[9], is_online))
+                # make_broker_user(name, id, customer_id, email, tel, mobile, ext, uuid, is_online):
+                users.append(make_broker_user(r[0]+' '+r[1], r[2], r[3], r[8], r[6], r[7], r[5], r[9], is_online))
 
-        db.remove()
-        return users
+            db.remove()
+            return users
+        except Exceptio, e:
+            log.debug("Exception: %s" % e)
+            return []
+
 
     def getCallers(self, sid):
         callers = []

@@ -62,6 +62,7 @@ freepybx/public/vwbroker.html
 freepybx/public/admin/admin_add.html
 freepybx/public/admin/admin_edit.html
 freepybx/public/admin/admin_list.html
+freepybx/public/admin/channel_limit_audio.html
 freepybx/public/admin/closed_tickets.html
 freepybx/public/admin/context_add.html
 freepybx/public/admin/context_edit.html
