@@ -66,8 +66,8 @@ class PbxIVR(Base):
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     customer_id = Column(Integer, ForeignKey('customers.id', onupdate="CASCADE", ondelete="CASCADE"))
-    domain = Column(Unicode(64), default=u"sip.ipcomms.net")
-    context = Column(Unicode(128), default=u"sip.ipcomms.net")
+    domain = Column(Unicode(64), default=u"sip.freepybx.org")
+    context = Column(Unicode(128), default=u"sip.freepybx.org")
     created = Column(DateTime, default=datetime.date(datetime.now()))
     name = Column(Unicode(64))
     audio_type = Column(Integer)
@@ -100,8 +100,8 @@ class PbxVirtualExtension(Base):
     query = Session.query_property()
 
     id = Column(Integer, autoincrement=True, primary_key=True)
-    domain = Column(Unicode(64), default=u"sip.ipcomms.net")
-    context = Column(Unicode(128), default=u"sip.ipcomms.net")
+    domain = Column(Unicode(64), default=u"sip.freepybx.org")
+    context = Column(Unicode(128), default=u"sip.freepybx.org")
     extension = Column(Unicode(4), nullable=False)
     did = Column(Unicode(15), nullable=False)
     timeout = Column(Integer, default=13)
@@ -117,8 +117,8 @@ class PbxCallerIDRoute(Base):
     query = Session.query_property()
 
     id = Column(Integer, autoincrement=True, primary_key=True)
-    domain = Column(Unicode(64), default=u"sip.ipcomms.net")
-    context = Column(Unicode(128), default=u"sip.ipcomms.net")
+    domain = Column(Unicode(64), default=u"sip.freepybx.org")
+    context = Column(Unicode(128), default=u"sip.freepybx.org")
     cid_number = Column(Unicode(15), nullable=False)
     pbx_route_id = Column(Integer, ForeignKey('pbx_routes.id', onupdate="CASCADE", ondelete="CASCADE"))
 
@@ -132,8 +132,8 @@ class PbxBlacklistedNumber(Base):
     query = Session.query_property()
 
     id = Column(Integer, autoincrement=True, primary_key=True)
-    domain = Column(Unicode(64), default=u"sip.ipcomms.net")
-    context = Column(Unicode(128), default=u"sip.ipcomms.net")
+    domain = Column(Unicode(64), default=u"sip.freepybx.org")
+    context = Column(Unicode(128), default=u"sip.freepybx.org")
     cid_number = Column(Unicode(15), nullable=False)
 
     def __str__(self):
@@ -146,8 +146,8 @@ class PbxVirtualMailbox(Base):
     query = Session.query_property()
 
     id = Column(Integer, autoincrement=True, primary_key=True)
-    domain = Column(Unicode(64), default=u"sip.ipcomms.net")
-    context = Column(Unicode(128), default=u"sip.ipcomms.net")
+    domain = Column(Unicode(64), default=u"sip.freepybx.org")
+    context = Column(Unicode(128), default=u"sip.freepybx.org")
     extension = Column(Unicode(4), nullable=False)
     vm_email = Column(Unicode(64), nullable=True)
     vm_password = Column(Unicode(64), nullable=False, default=u'9999')
@@ -168,8 +168,8 @@ class PbxTTS(Base):
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     customer_id = Column(Integer, ForeignKey('customers.id', onupdate="CASCADE", ondelete="CASCADE"))
-    domain = Column(Unicode(64), default=u"sip.ipcomms.net")
-    context = Column(Unicode(128), default=u"sip.ipcomms.net")
+    domain = Column(Unicode(64), default=u"sip.freepybx.org")
+    context = Column(Unicode(128), default=u"sip.freepybx.org")
     created = Column(DateTime, default=datetime.date(datetime.now()))
     name = Column(Unicode(64), default=u'Unknown')
     voice = Column(Unicode(64))
@@ -185,8 +185,8 @@ class PbxTODRoute(Base):
     query = Session.query_property()
 
     id = Column(Integer, autoincrement=True, primary_key=True)
-    domain = Column(Unicode(64), default=u"sip.ipcomms.net")
-    context = Column(Unicode(128), default=u"sip.ipcomms.net")
+    domain = Column(Unicode(64), default=u"sip.freepybx.org")
+    context = Column(Unicode(128), default=u"sip.freepybx.org")
     name = Column(Unicode(64), default=u'Unknown')
     day_start = Column(Integer, default=1)
     day_end = Column(Integer, default=7)
@@ -206,8 +206,8 @@ class PbxRecording(Base):
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     customer_id = Column(Integer, ForeignKey('customers.id', onupdate="CASCADE", ondelete="CASCADE"))
-    domain = Column(Unicode(64), default=u"sip.ipcomms.net")
-    context = Column(Unicode(128), default=u"sip.ipcomms.net")
+    domain = Column(Unicode(64), default=u"sip.freepybx.org")
+    context = Column(Unicode(128), default=u"sip.freepybx.org")
     created = Column(DateTime, default=datetime.date(datetime.now()))
     recording_type = Column(Integer)
     name = Column(UnicodeText)
@@ -225,8 +225,8 @@ class PbxDid(Base):
     id = Column(Integer, autoincrement=True, primary_key=True)
     did = Column(Unicode(20), nullable=False,  unique=True)
     active = Column(Boolean, default=True)
-    domain = Column(Unicode(64), default=u"sip.ipcomms.net")
-    context = Column(Unicode(128), default=u"sip.ipcomms.net")
+    domain = Column(Unicode(64), default=u"sip.freepybx.org")
+    context = Column(Unicode(128), default=u"sip.freepybx.org")
     t38 = Column(Boolean, default=False)
     cnam = Column(Boolean, default=False)
     e911 = Column(Boolean, default=False)
@@ -261,8 +261,8 @@ class PbxDidPool(Base):
     id = Column(Integer, autoincrement=True, primary_key=True)
     did = Column(Unicode(20), nullable=False)
     active = Column(Boolean, default=True)
-    domain = Column(Unicode(64), default=u"sip.ipcomms.net")
-    context = Column(Unicode(128), default=u"sip.ipcomms.net")
+    domain = Column(Unicode(64), default=u"sip.freepybx.org")
+    context = Column(Unicode(128), default=u"sip.freepybx.org")
     t38 = Column(Boolean, default=False)
     cnam = Column(Boolean, default=False)
     e911 = Column(Boolean, default=False)
@@ -420,7 +420,7 @@ class PbxRoute(Base):
     pbx_route_type_id = Column(Integer, ForeignKey('pbx_route_types.id', onupdate="CASCADE", ondelete="CASCADE"), default=1)
     pbx_to_id = Column(Integer)
     context = Column(Unicode(64), default=u'default')
-    domain = Column(Unicode(128), default=u'sip.ipcomms.net')
+    domain = Column(Unicode(128), default=u'sip.freepybx.org')
     name = Column(Unicode(128), nullable=False)
     continue_route = Column(Boolean, default=False)
     voicemail_enabled = Column(Boolean, default=False)
@@ -448,7 +448,7 @@ class PbxCondition(Base):
     id = Column(Integer, autoincrement=True, primary_key=True)
     pbx_route_id = Column(Integer, ForeignKey('pbx_routes.id', onupdate="CASCADE", ondelete="CASCADE"))
     context = Column(Unicode(64), default=u'default')
-    domain = Column(Unicode(128), default=u'sip.ipcomms.net')
+    domain = Column(Unicode(128), default=u'sip.freepybx.org')
     field = Column(Unicode(128), default=u'destination_number')
     expression = Column(Unicode(128), default=u'^(.*)$')
 
@@ -461,7 +461,7 @@ class PbxConditionTmpl(Base):
     id = Column(Integer, autoincrement=True, primary_key=True)
     pbx_route_type_id = Column(Integer, ForeignKey('pbx_route_types.id', onupdate="CASCADE", ondelete="CASCADE"))
     context = Column(Unicode(64), default=u'default')
-    domain = Column(Unicode(128), default=u'sip.ipcomms.net')
+    domain = Column(Unicode(128), default=u'sip.freepybx.org')
     field = Column(Unicode(128), default=u'destination_number')
     expression = Column(Unicode(128), default=u'^(.*)$')
 
@@ -474,7 +474,7 @@ class PbxAction(Base):
     id = Column(Integer, autoincrement=True, primary_key=True)
     pbx_condition_id = Column(Integer, ForeignKey('pbx_conditions.id', onupdate="CASCADE", ondelete="CASCADE"))
     context = Column(Unicode(64), default=u'default')
-    domain = Column(Unicode(128), default=u'sip.ipcomms.net')
+    domain = Column(Unicode(128), default=u'sip.freepybx.org')
     is_authenticated = Column(Boolean, default=False)
     precedence = Column(Integer, nullable=False, default=10)
     application = Column(Unicode(64), default=u'bridge')
@@ -492,7 +492,7 @@ class PbxActionTmpl(Base):
     id = Column(Integer, autoincrement=True, primary_key=True)
     pbx_condition_tmpl_id = Column(Integer, ForeignKey('pbx_condition_tmpl.id', onupdate="CASCADE", ondelete="CASCADE"))
     context = Column(Unicode(64), default=u'default')
-    domain = Column(Unicode(128), default=u'sip.ipcomms.net')
+    domain = Column(Unicode(128), default=u'sip.freepybx.org')
     is_authenticated = Column(Boolean, default=False)
     precedence = Column(Integer, nullable=False, default=10)
     application = Column(Unicode(64), default=u'bridge')
@@ -675,8 +675,8 @@ class PbxConferenceBridge(Base):
     query = Session.query_property()
 
     id = Column(Integer, autoincrement=True, primary_key=True)
-    context = Column(Unicode(64), default=u'sip.ipcomms.net')
-    domain = Column(Unicode(128), default=u'sip.ipcomms.net')
+    context = Column(Unicode(64), default=u'sip.freepybx.org')
+    domain = Column(Unicode(128), default=u'sip.freepybx.org')
     extension = Column(Unicode(128), nullable=False)
     pin = Column(Unicode(4), default=u'7654')
 
@@ -687,8 +687,8 @@ class PbxFax(Base):
     query = Session.query_property()
 
     id = Column(Integer, autoincrement=True, primary_key=True)
-    context = Column(Unicode(64), default=u'sip.ipcomms.net')
-    domain = Column(Unicode(128), default=u'sip.ipcomms.net')
+    context = Column(Unicode(64), default=u'sip.freepybx.org')
+    domain = Column(Unicode(128), default=u'sip.freepybx.org')
     extension = Column(Unicode(128), nullable=False)
 
 

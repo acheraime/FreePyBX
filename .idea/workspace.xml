@@ -39,10 +39,28 @@
       <file leaf-file-name="funcs.html" pinned="false" current="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/freepybx/templates/pbx/funcs.html">
           <provider selected="true" editor-type-id="text-editor">
-            <state line="23" column="63" selection-start="1020" selection-end="1020" vertical-scroll-proportion="0.0">
+            <state line="69" column="14" selection-start="3722" selection-end="3722" vertical-scroll-proportion="-14.076923">
               <folding>
                 <element signature="n#style#0;n#div#0;n#div#0;n#div#0;n#py:def#9;n#html#0;n#!!top" expanded="true" />
               </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="tickets.html" pinned="false" current="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/freepybx/public/tickets/tickets.html">
+          <provider selected="true" editor-type-id="text-editor">
+            <state line="45" column="60" selection-start="1882" selection-end="1882" vertical-scroll-proportion="0.0">
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="pbx.py" pinned="false" current="true" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/freepybx/model/pbx.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state line="340" column="56" selection-start="12604" selection-end="12604" vertical-scroll-proportion="8.644068">
+              <folding />
             </state>
           </provider>
         </entry>
@@ -56,13 +74,31 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="tts_add.html" pinned="false" current="true" current-in-tab="true">
+      <file leaf-file-name="tts_add.html" pinned="false" current="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/freepybx/public/pbx/tts_add.html">
           <provider selected="true" editor-type-id="text-editor">
-            <state line="32" column="39" selection-start="1383" selection-end="1383" vertical-scroll-proportion="0.23197491">
+            <state line="35" column="47" selection-start="1513" selection-end="1513" vertical-scroll-proportion="0.0">
               <folding>
                 <element signature="n#style#0;n#textarea#0;n#li#1;n#ul#0;n#div#0;n#!!top" expanded="true" />
               </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="internal_tickets.html" pinned="false" current="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/freepybx/public/tickets/internal_tickets.html">
+          <provider selected="true" editor-type-id="text-editor">
+            <state line="229" column="1" selection-start="6750" selection-end="6750" vertical-scroll-proportion="0.0">
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="closed_tickets.html" pinned="false" current="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/freepybx/public/tickets/closed_tickets.html">
+          <provider selected="true" editor-type-id="text-editor">
+            <state line="61" column="16" selection-start="2228" selection-end="2228" vertical-scroll-proportion="0.0">
+              <folding />
             </state>
           </provider>
         </entry>
@@ -88,11 +124,11 @@
         <option value="$PROJECT_DIR$/freepybx/model/core.py" />
         <option value="$PROJECT_DIR$/freepybx/controllers/deleteme.py" />
         <option value="$PROJECT_DIR$/freepybx/controllers/admin.py" />
-        <option value="$PROJECT_DIR$/freepybx/model/pbx.py" />
         <option value="$PROJECT_DIR$/freepybx/controllers/pbx.py" />
         <option value="$PROJECT_DIR$/freepybx/public/pbx/blacklist_add.html" />
         <option value="$PROJECT_DIR$/freepybx/templates/pbx/funcs.html" />
         <option value="$PROJECT_DIR$/freepybx/public/pbx/tts_add.html" />
+        <option value="$PROJECT_DIR$/freepybx/model/pbx.py" />
       </list>
     </option>
   </component>
@@ -371,6 +407,28 @@
             </PATH_ELEMENT>
             <PATH_ELEMENT>
               <option name="myItemId" value="public" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+          </PATH>
+          <PATH>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="FreePyBX" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="FreePyBX-Proprietary" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="freepybx" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="public" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="tickets" />
               <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
             </PATH_ELEMENT>
           </PATH>
@@ -685,7 +743,7 @@
     <layout>
       <window_info id="Changes" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Database" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
-      <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.10670732" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
+      <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.37296748" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.4" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="8" side_tool="true" content_ui="tabs" />
       <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="0" side_tool="true" content_ui="tabs" />
@@ -693,8 +751,8 @@
       <window_info id="Regex Tester" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="11" side_tool="false" content_ui="tabs" />
       <window_info id="CSS-X-Fire" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.22121212" sideWeight="0.5" order="10" side_tool="false" content_ui="tabs" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
-      <window_info id="Structure" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.15208112" sideWeight="0.89329267" order="6" side_tool="false" content_ui="tabs" />
-      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.15421557" sideWeight="0.89329267" order="1" side_tool="false" content_ui="combo" />
+      <window_info id="Structure" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.15208112" sideWeight="0.6270325" order="6" side_tool="false" content_ui="tabs" />
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.15421557" sideWeight="0.6270325" order="1" side_tool="false" content_ui="combo" />
       <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Data Sources" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.13127" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
       <window_info id="Cvs" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.25" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
@@ -759,41 +817,6 @@
     <breakpoint-manager />
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/freepybx/model/meta.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="9" column="0" selection-start="454" selection-end="454" vertical-scroll-proportion="0.15845071">
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/freepybx/model/pbx.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="539" column="0" selection-start="19663" selection-end="19663" vertical-scroll-proportion="0.0">
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/freepybx/model/core.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="256" column="44" selection-start="9468" selection-end="9468" vertical-scroll-proportion="0.0">
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/freepybx/controllers/pbx.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="438" column="53" selection-start="22053" selection-end="22053" vertical-scroll-proportion="-3.3818183">
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/freepybx/lib/base.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0">
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/freepybx/model/call_center.py">
       <provider selected="true" editor-type-id="text-editor">
         <state line="15" column="24" selection-start="667" selection-end="667" vertical-scroll-proportion="0.0">
@@ -805,15 +828,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state line="1227" column="8" selection-start="51159" selection-end="51159" vertical-scroll-proportion="-17.836363">
           <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/freepybx/controllers/deleteme.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="43" column="45" selection-start="1588" selection-end="1588" vertical-scroll-proportion="0.0">
-          <folding>
-            <marker date="1358096601000" expanded="true" signature="2277:2683" placeholder="..." />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -854,7 +868,7 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/freepybx/templates/pbx/funcs.html">
       <provider selected="true" editor-type-id="text-editor">
-        <state line="23" column="63" selection-start="1020" selection-end="1020" vertical-scroll-proportion="0.0">
+        <state line="69" column="14" selection-start="3722" selection-end="3722" vertical-scroll-proportion="-14.076923">
           <folding>
             <element signature="n#style#0;n#div#0;n#div#0;n#div#0;n#py:def#9;n#html#0;n#!!top" expanded="true" />
           </folding>
@@ -868,12 +882,54 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/freepybx/public/tickets/ticket_edit.html">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0">
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/freepybx/public/tickets/ticket_add.html">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="48" column="49" selection-start="2049" selection-end="2062" vertical-scroll-proportion="-0.0031347962">
+          <folding />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/freepybx/public/pbx/tts_add.html">
       <provider selected="true" editor-type-id="text-editor">
-        <state line="32" column="39" selection-start="1383" selection-end="1383" vertical-scroll-proportion="0.23197491">
+        <state line="35" column="47" selection-start="1513" selection-end="1513" vertical-scroll-proportion="0.0">
           <folding>
             <element signature="n#style#0;n#textarea#0;n#li#1;n#ul#0;n#div#0;n#!!top" expanded="true" />
           </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/freepybx/public/tickets/internal_tickets.html">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="229" column="1" selection-start="6750" selection-end="6750" vertical-scroll-proportion="0.0">
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/freepybx/public/tickets/closed_tickets.html">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="61" column="16" selection-start="2228" selection-end="2228" vertical-scroll-proportion="0.0">
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/freepybx/public/tickets/tickets.html">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="45" column="60" selection-start="1882" selection-end="1882" vertical-scroll-proportion="0.0">
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/freepybx/model/pbx.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="340" column="56" selection-start="12604" selection-end="12604" vertical-scroll-proportion="8.644068">
+          <folding />
         </state>
       </provider>
     </entry>
