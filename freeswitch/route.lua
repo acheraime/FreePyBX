@@ -28,7 +28,7 @@ digits = digits or ""
 gateway = gateway or nil
 
 env = assert(luasql.postgres())
-con = assert(env:connect("dbname=pbx user=pybx password=3v3lyn555 host=127.0.0.1"))
+con = assert(env:connect("dbname=freepybx user=freepybx password=secretpass1 host=127.0.0.1"))
 session:set_tts_parms("cepstral", "Allison")
 
 --[[ Custom Logging makes it easier to troubleshoot or remove.]]--
@@ -167,6 +167,12 @@ end
 --[[ ID route lookup. ]]--
 function get_route_by_id(id)
     db = assert(con:execute(string.format("SELECT * FROM pbx_routes WHERE id = %d", tonumber(id))))
+    return db:fetch({}, "a")
+end
+
+--[[ Hard limit. ]]--
+function get_inbound_channel_limit(id)
+    db = assert(con:execute(string.format("SELECT hard_channel_limit FROM customers WHERE id = %d", tonumber(id))))
     return db:fetch({}, "a")
 end
 
@@ -530,7 +536,7 @@ function bridge_external(route, context)
     session:execute("set","effective_caller_id_name=" .. caller_name)
     session:execute("set","effective_caller_id_number=" .. caller_num)
     session:execute("set","ringback=%(2000,4000,440.0,480.0)")
-    session:execute("bridge","sofia/gateway/" .. gw["default_gateway"] .. "/76810031" .. route["did"])
+    session:execute("bridge","sofia/gateway/" .. gw["default_gateway"] .. "/" .. route["did"])
     send_route(get_route_by_id(route["timeout_destination"]), context)
     session:hangup()
 end
@@ -550,7 +556,7 @@ function bridge_outbound(name, num, to, cust_id)
     session:execute("set","ringback=%(2000,4000,440.0,480.0)")
     session:execute("set","effective_caller_id_name=" .. name)
     session:execute("set","effective_caller_id_number=" .. num)
-    session:execute("bridge","sofia/gateway/" .. gateway .."/76810031" .. to)
+    session:execute("bridge","sofia/gateway/" .. gateway .."/" .. to)
     session:hangup()
 end
 
@@ -706,7 +712,7 @@ if is_inbound then
     log("Channels count: " .. tonumber(customer['inbound_channel_limit']))
     log("Channels:" .. channels)
 
-    if channels > tonumber(customer['inbound_channel_limit']) then
+    if channels > tonumber(customer['hard_channel_limit']) then
         session:execute("playback", "tone_stream://%(500,500,480,620)")
         session:hangup()
     end
@@ -751,15 +757,15 @@ if is_outbound and is_authed then
     log("Context: "..context)
     log("Domain: "..domain)
     log("Channels: " ..channels)
-    log("Customer limit" ..customer['inbound_channel_limit'])
+    log("Customer limit" ..customer['hard_channel_limit'])
 
-    if channels >= tonumber(customer['inbound_channel_limit']) then
+    if channels >= tonumber(customer['hard_channel_limit']) then
         log("Limit reached...")
         session:execute("playback", "/usr/local/freeswitch/recordings/channel_audio/"..customer['channel_audio'])
         session:hangup()
     else
         log("Channels available...")
-        log(tonumber(customer['outbound_channel_limit']))
+        log(tonumber(customer['hard_channel_limit']))
     end
 
     if string.len(cust["ext_number"]) > 6 then

@@ -75,42 +75,26 @@
      delFunc:'this.form.rest();'">
     <ul class="field_list">
         <li class="even">
-            <label class="fieldlabel" for="did_name">DID</label>
-            <input type="text" required="true" name="did_name" id="did_name" placeholder="e.g. 333444222"
+            <label class="fieldlabel" for="did_add_name">DID</label>
+            <input type="text" required="true" name="did" id="did_add_name" placeholder="e.g. 333444222"
                    dojoType="dijit.form.ValidationTextBox"
                    missingMessage="Please add a DID."
-                   regExp="\b[0-9]{10,15}\b"
+                   regExp="\b[0-9]{6,15}\b"
                    promptMessage="Please enter a valid DID."
                    invalidMessage="Invalid DID."
                    trim="true"/>
         </li>
         <li class="odd">
-            <label class="fieldlabel" for="active">Active</label>
-            <input type="text" name="active" id="add_active" value="true" checked="false"
-                   dojoType="dijit.form.CheckBox"/>
-
-        </li>
-        <li class="even">
-            <label class="fieldlabel" for="add_t38">T38</label>
-            <input type="text" name="t38" id="add_t38" value="true" checked="false" dojoType="dijit.form.CheckBox"/>
-
-        </li>
-        <li class="odd">
-            <label class="fieldlabel" for="e911">e911</label>
-            <input type="text" name="e911" id="add_e911" value="true" checked="false" dojoType="dijit.form.CheckBox"/>
-
-        </li>
-        <li class="even">
-            <label class="fieldlabel" for="cnam">CNAM</label>
-            <input type="text" name="cnam" id="add_cnam" value="true" checked="false" dojoType="dijit.form.CheckBox"/>
-
-        </li>
-        <li class="odd">
-            <label class="fieldlabel" for="customer_name">Customer</label>
-
+            <label class="fieldlabel" for="did_add_customer_name">Customer</label>
             <div dojoType="dojo.data.ItemFileReadStore" jsId="customer_store" url="/admin/customers"></div>
             <input dojoType="dijit.form.FilteringSelect" required="true" store="customerStore" value="" searchAttr="name"
-                   name="customer_name"/>
+                   name="customer_name" id="did_add_customer_name"/>
+        </li>
+        <li class="even">
+            <label class="fieldlabel" for="add_did_active">Active</label>
+            <input name="active" id="add_did_active" value="true" checked="false"
+                   dojoType="dijit.form.CheckBox"/>
+
         </li>
     </ul>
 </div>

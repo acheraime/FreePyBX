@@ -718,7 +718,8 @@ class GroupEditForm(formencode.Schema):
 
 class DIDForm(formencode.Schema):
     allow_extra_fields = True
-    cust_add_did = formencode.All(UniqueDID(), validators.MinLength(10),\
+    ignore_key_missing = True
+    did = formencode.All(UniqueDID(), validators.MinLength(6),\
         validators.String(not_empty=True),\
         validators.MaxLength(15))
     customer_name = validators.String(not_empty=True)
@@ -742,7 +743,7 @@ class OutboundRouteForm(formencode.Schema):
 class TTSForm(formencode.Schema):
     allow_extra_fields = True
     name = formencode.All(UniqueTTS(), validators.MaxLength(64))
-    text = validators.String(not_empty=True)
+    tts_text = validators.String(not_empty=True)
 
 
 class IVRForm(formencode.Schema):

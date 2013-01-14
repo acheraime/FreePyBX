@@ -57,7 +57,8 @@ __all__=['escapeSpecialCharacters','has_queue','has_agent','has_tier',
          'delete_fax_ext','delete_ivr','delete_cid','delete_tts','del_blacklist',
          'delete_conf','delete_tod','delete_conditions','get_findme','is_iter_obj',
          'PbxError', 'DataInputError','PbxEncoder', 'get_presence_hosts', 'has_method',
-         'get_mimetype','make_file_response', 'get_gateway','delete_customer']
+         'get_mimetype','make_file_response', 'get_gateway','delete_customer',
+         'delete_did']
 
 
 def get_mimetype(path):
@@ -478,7 +479,12 @@ def delete_conditions(route_id):
 def delete_customer(context):
     PbxRoute.query.filter(PbxRoute.context==context).delete()
     Customer.query.filter(Customer.context==context).delete()
-    db.commit();
+    db.commit()
+
+def delete_did(context, did_id):
+    PbxRoute.query.filter_by(context=context, pbx_to_id=did_id, pbx_route_type_id=9).delete()
+    PbxDid.query.filter_by(context=context, id=did_id).delete()
+    db.commit()
 
 def get_findme(name, context):
     e = PbxEndpoint.query.filter_by(user_context=context).filter_by(auth_id=name).first()

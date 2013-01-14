@@ -51,7 +51,7 @@ import pyamf
 import sys
 
 Session = scoped_session(sessionmaker(autoflush=True,autocommit=True,expire_on_commit=False))
-Session.configure(bind=create_engine('postgresql://pybx:3v3lyn555@127.0.0.1/pbx'))
+Session.configure(bind=create_engine('postgresql://freepybx:secretpass1@127.0.0.1/freepybx'))
 
 decoder = Decoder(amf3=True)
 encoder = Encoder(amf3=True)

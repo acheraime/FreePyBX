@@ -21,48 +21,58 @@
     except that You may alter any license notices to the extent required to
     remedy known factual inaccuracies.
 """
-
-import logging
+import os
+import sys
+import re
 import datetime
+import time
+import shutil
+import cgi
+import cgitb
+import csv
+import urllib
+import logging
+
+import simplejson as json
+from simplejson import loads, dumps
+
+import formencode
+from formencode import validators
+
 from datetime import datetime
+from decorator import decorator
+
 from pylons import request, response, session, tmpl_context as c, url
 from pylons import config
 from pylons.controllers.util import abort, redirect
+from pylons.decorators.rest import restrict
+from pylons.decorators import validate, jsonify
+
 from freepybx.lib.base import BaseController, render
 from freepybx.model import meta
 from freepybx.model.meta import *
 from freepybx.model.meta import Session as db
-from genshi import HTML
-from pylons.decorators.rest import restrict
-import formencode
-from formencode import validators
 from freepybx.lib.pymap.imap import Pymap
 from freepybx.lib.auth import *
 from freepybx.lib.forms import *
 from freepybx.lib.util import *
 from freepybx.lib.validators import *
-from decorator import decorator
-from pylons.decorators import jsonify
-import formencode
-from formencode import validators
-from pylons.decorators import validate
-from simplejson import loads, dumps
-import simplejson as json
-import os, sys
+
+from genshi import HTML
 from subprocess import call
 from stat import *
-import simplejson as json
-from simplejson import loads, dumps
-import urllib
+
 from sqlalchemy import Date, cast, desc, asc
 from sqlalchemy.orm import join
-import time
-import shutil
-import cgi
-import cgitb; cgitb.enable()
-#from ESL import *
-import re
-import csv
+
+try:
+    cgitb.enable()
+except:
+    pass
+try:
+    from ESL import *
+except:
+    pass
 
 logged_in = IsLoggedIn()
 credential = HasCredential
@@ -370,64 +380,61 @@ class PbxController(BaseController):
         finally:
             db.remove()
 
-    def doc_pbx_json(self):
-        """ Below is the JSON data called for the pbx by dojo and/or the template
-            context. The json decorators do not work because postgres scary date
-            objects are not serializable, so they have to be string formatted or
-            worse, passed to the json encoder class and serialized by type
-            reference. The encoder is imported from the lib.util.
-
-            Lots of work needs to be done like meta class init functions for
-            inserts, but as I rollout subsequent versions, stored procedures
-            will eventually replace much of the way sqlalchemy handles the data
-            and I prefer not to do it more than once ;p"""
-
     @authorize(logged_in)
+    @jsonify
     def users(self):
         items=[]
-        exts = []
-        for row in User.query.filter(User.customer_id==session['customer_id']).order_by(asc(User.id)).all():
-            for ext in PbxEndpoint.query.filter(PbxEndpoint.user_id==row.id).filter_by(user_context=session['context']).all():
-                exts.append(ext.auth_id)
-            if not len(exts) > 0:
-                extension = "No Extension"
-            else:
-                extension = ",".join(exts)
-            items.append({'id': row.id, 'extension': extension, 'username': row.username, 'password': row.password, 'first_name': row.first_name, 'name': row.first_name +' '+row.last_name,
-                          'last_name': row.last_name, 'address': row.address, 'address_2': row.address_2, 'city': row.city, 'state': row.state, 'zip': row.zip,
-                          'tel': row.tel, 'mobile': row.mobile, 'notes': row.notes, 'created': row.created.strftime("%m/%d/%Y %I:%M:%S %p"), 'updated': row.updated.strftime("%m/%d/%Y %I:%M:%S %p"), 'active': row.active,
-                          'group_id': row.group_id, 'last_login': row.last_login.strftime("%m/%d/%Y %I:%M:%S %p"), 'remote_addr': row.remote_addr, 'session_id': row.session_id, 'customer_id': row.customer_id})
-            exts = []
-        db.remove()
 
-        out = dict({'identifier': 'id', 'label': 'name', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
+        try:
+            for row in User.query.filter(User.customer_id==session['customer_id']).order_by(asc(User.id)).all():
+                exts = []
+                for ext in PbxEndpoint.query.filter(PbxEndpoint.user_id==row.id).filter_by(user_context=session['context']).all():
+                    exts.append(ext.auth_id)
+                if not len(exts) > 0:
+                    extension = "No Extension"
+                else:
+                    extension = ",".join(exts)
 
-        return response(request.environ, self.start_response)
+                items.append({'id': row.id, 'extension': extension, 'username': row.username, 'password': row.password, 'first_name': row.first_name, 'name': row.first_name +' '+row.last_name,
+                              'last_name': row.last_name, 'address': row.address, 'address_2': row.address_2, 'city': row.city, 'state': row.state, 'zip': row.zip,
+                              'tel': row.tel, 'mobile': row.mobile, 'notes': row.notes, 'created': row.created.strftime("%m/%d/%Y %I:%M:%S %p"), 'updated': row.updated.strftime("%m/%d/%Y %I:%M:%S %p"), 'active': row.active,
+                              'group_id': row.group_id, 'last_login': row.last_login.strftime("%m/%d/%Y %I:%M:%S %p"), 'remote_addr': row.remote_addr, 'session_id': row.session_id, 'customer_id': row.customer_id})
+            db.remove()
+            return {'identifier': 'id', 'label': 'name', 'items': items}
+
+        except KeyError, e:
+            return {'identifier': 'id', 'label': 'name', 'items': [], 'is_error': True, 'message': 'Exception: key_error: '+ str(e)}
+
+        except Exception, e:
+            return {'identifier': 'id', 'label': 'name', 'items': [], 'is_error': True, 'message': 'Exception: ' + str(e)}
 
     @authorize(logged_in)
+    @jsonify
     def user_by_id(self, id, **kw):
         items=[]
-        exts = []
-        for row in User.query.filter(User.customer_id==session['customer_id']).filter(User.id==id).order_by(asc(User.id)).all():
-            for ext in PbxEndpoint.query.filter(PbxEndpoint.user_id==row.id).all():
-                exts.append(ext.auth_id)
-            if not len(exts) > 0:
-                extension = "No Extension"
-            else:
-                extension = ",".join(exts)
-            items.append({'id': row.id, 'extension': extension, 'username': row.username, 'password': row.password, 'first_name': row.first_name, 'portal_extension': row.portal_extension,
-                          'last_name': row.last_name, 'address': row.address, 'address_2': row.address_2, 'city': row.city, 'state': row.state, 'zip': row.zip,
-                          'tel': row.tel, 'mobile': row.mobile, 'notes': row.notes, 'created': row.created.strftime("%m/%d/%Y %I:%M:%S %p"), 'updated': row.updated.strftime("%m/%d/%Y %I:%M:%S %p"), 'active': row.active,
-                          'group_id': row.group_id, 'last_login': row.last_login.strftime("%m/%d/%Y %I:%M:%S %p"), 'remote_addr': row.remote_addr, 'session_id': row.session_id, 'customer_id': row.customer_id})
-            exts = []
-        db.remove()
-        out = dict({'identifier': 'id', 'label': 'name', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
 
-        return response(request.environ, self.start_response)
+        try:
+            for row in User.query.filter(User.customer_id==session['customer_id'])\
+                                        .filter(User.id==id).order_by(asc(User.id)).all():
+                exts = []
+                for ext in PbxEndpoint.query.filter(PbxEndpoint.user_id==row.id).all():
+                    exts.append(ext.auth_id)
+                if not len(exts) > 0:
+                    extension = "No Extension"
+                else:
+                    extension = ",".join(exts)
+                items.append({'id': row.id, 'extension': extension, 'username': row.username, 'password': row.password, 'first_name': row.first_name, 'portal_extension': row.portal_extension,
+                              'last_name': row.last_name, 'address': row.address, 'address_2': row.address_2, 'city': row.city, 'state': row.state, 'zip': row.zip,
+                              'tel': row.tel, 'mobile': row.mobile, 'notes': row.notes, 'created': row.created.strftime("%m/%d/%Y %I:%M:%S %p"), 'updated': row.updated.strftime("%m/%d/%Y %I:%M:%S %p"), 'active': row.active,
+                              'group_id': row.group_id, 'last_login': row.last_login.strftime("%m/%d/%Y %I:%M:%S %p"), 'remote_addr': row.remote_addr, 'session_id': row.session_id, 'customer_id': row.customer_id})
+            db.remove()
+            return {'identifier': 'id', 'label': 'name', 'items': items}
+
+        except KeyError, e:
+            return {'identifier': 'id', 'label': 'name', 'items': [], 'is_error': True, 'message': 'Exception: key_error: '+ str(e)}
+
+        except Exception, e:
+            return {'identifier': 'id', 'label': 'name', 'items': [], 'is_error': True, 'message': 'Exception: ' + str(e)}
 
     @restrict("POST")
     @authorize(logged_in)
@@ -454,40 +461,40 @@ class PbxController(BaseController):
 
             db.add(user)
 
-            g = Group.query.filter(Group.id==form_result.get("group_id", 2)).first()
-            g.users.append(user)
-            db.add(g)
+            group = Group.query.filter(Group.id==form_result.get("group_id", 2)).first()
+            group.users.append(user)
+            db.add(group)
 
             db.flush()
             db.commit()
 
             context = PbxContext.query.filter(PbxContext.customer_id==session['customer_id']).first()
 
-            em = EmailAccount()
+            email = EmailAccount()
             endpoint = PbxEndpoint()
-            r = PbxRoute()
-            c = PbxCondition()
-            s = PbxAction()
+            route = PbxRoute()
+            condition = PbxCondition()
+            action = PbxAction()
 
             if(session['has_crm']):
                 if len(form_result.get("email"))>0 and len(form_result.get("email_password"))>0 and len(form_result.get("email_server"))>0:
-                    em = EmailAccount()
-                    em.user_id = user.id
-                    em.customer_id = session['customer_id']
-                    em.email = form_result.get("email")
-                    em.password = form_result.get("email_password")
-                    em.mail_server = form_result.get("email_server")
+                    email = EmailAccount()
+                    email.user_id = user.id
+                    email.customer_id = session['customer_id']
+                    email.email = form_result.get("email")
+                    email.password = form_result.get("email_password")
+                    email.mail_server = form_result.get("email_server")
                     email = form_result.get("email", None)
 
-                    db.add(em)
+                    db.add(email)
                     db.commit()
                     db.flush()
             else:
-                email = ""
+                email = None
 
             if request.params.has_key('extension'):
-                ext = form_result.get("extension").strip()
-                if ext.isdigit():
+                extension = form_result.get("extension").strip()
+                if extension.isdigit():
                     if (len(get_extensions(ext))>0):
                         raise Exception("Extension already exists!")
                         ext_failed = True
@@ -512,7 +519,7 @@ class PbxController(BaseController):
                 endpoint.toll_allow = u'domestic'
                 endpoint.call_timeout = form_result.get("call_timeout", 20)
                 endpoint.accountcode = context.caller_id_number
-                endpoint.pbx_force_contact =  form_result.get("pbx_force_contact", u'nat-connectile-dysfunction')
+                endpoint.pbx_force_contact = form_result.get("pbx_force_contact", u'nat-connectile-dysfunction')
                 endpoint.vm_email = form_result.get("vm_email")
                 endpoint.vm_password = form_result.get("vm_password")
                 endpoint.vm_attach_email = True if form_result.get("vm_email", None) is not None else False
@@ -523,60 +530,60 @@ class PbxController(BaseController):
                 db.flush()
                 db.commit()
 
-                r = PbxRoute()
-                r.context = context.context
-                r.domain = context.context
-                r.name = form_result.get("extension")
-                r.continue_route = True
-                r.voicemail_enable = True
-                r.voicemail_ext = form_result.get("extension")
-                r.pbx_route_type_id = 1
-                r.pbx_to_id = endpoint.id
+                route = PbxRoute()
+                route.context = context.context
+                route.domain = context.context
+                route.name = form_result.get("extension")
+                route.continue_route = True
+                route.voicemail_enable = True
+                route.voicemail_ext = form_result.get("extension")
+                route.pbx_route_type_id = 1
+                route.pbx_to_id = endpoint.id
 
-                db.add(r)
+                db.add(route)
                 db.commit(); db.flush()
 
-                con = PbxCondition()
-                con.context = context.context
-                con.domain = context.context
-                con.field = u'destination_number'
-                con.expression = u'^('+form_result.get("extension")+')$'
-                con.pbx_route_id = r.id
+                condition = PbxCondition()
+                condition.context = context.context
+                condition.domain = context.context
+                condition.field = u'destination_number'
+                condition.expression = u'^('+form_result.get("extension")+')$'
+                condition.pbx_route_id = route.id
 
-                db.add(c)
+                db.add(condition)
                 db.commit(); db.flush()
 
-                s = PbxAction()
-                s.pbx_condition_id = con.id
-                s.context = context.context
-                s.domain = context.context
-                s.precedence = 1
-                s.application = u'set'
-                s.data = u'hangup_after_bridge=true'
+                action = PbxAction()
+                action.pbx_condition_id = con.id
+                action.context = context.context
+                action.domain = context.context
+                action.precedence = 1
+                action.application = u'set'
+                action.data = u'hangup_after_bridge=true'
+
+                db.add(action)
+                db.commit(); db.flush()
+
+                action = PbxAction()
+                action.pbx_condition_id = con.id
+                action.context = context.context
+                action.domain = context.context
+                action.precedence = 2
+                action.application = u'set'
+                action.data = u'call_timeout=20'
 
                 db.add(s)
                 db.commit(); db.flush()
 
-                s = PbxAction()
-                s.pbx_condition_id = con.id
-                s.context = context.context
-                s.domain = context.context
-                s.precedence = 2
-                s.application = u'set'
-                s.data = u'call_timeout=20'
+                action = PbxAction()
+                action.pbx_condition_id = condition.id
+                action.context = context.context
+                action.domain = context.context
+                action.precedence = 3
+                action.application = u'bridge'
+                action.data = u'{force_transfer_context='+context.context+'}sofia/'+str(get_profile())+'/'+form_result.get("extension")+'%'+context.context
 
-                db.add(s)
-                db.commit(); db.flush()
-
-                s = PbxAction()
-                s.pbx_condition_id = con.id
-                s.context = context.context
-                s.domain = context.context
-                s.precedence = 3
-                s.application = u'bridge'
-                s.data = u'{force_transfer_context='+context.context+'}sofia/'+str(get_profile())+'/'+form_result.get("extension")+'%'+context.context
-
-                db.add(s)
+                db.add(action)
                 db.flush()
                 db.commit()
 
@@ -590,58 +597,65 @@ class PbxController(BaseController):
     @restrict("POST")
     @authorize(logged_in)
     def edit_user(self, **kw):
-
         schema = UserEditForm()
-
         try:
             form_result = schema.to_python(request.params)
-            u = User.query.filter(User.id==form_result.get("id")).filter(User.customer_id==session['customer_id']).first()
-            if form_result.get("username") != u.username:
+            user = User.query.filter(User.id==form_result.get("id"))\
+                                .filter(User.customer_id==session['customer_id']).first()
+            if form_result.get("username") != user.username:
                 if not get_usernames(str(form_result.get("username", None))):
-                    u.username = form_result.get("username")
-            u.password = form_result.get("password")
-            u.first_name = form_result.get("first_name")
-            u.last_name = form_result.get("last_name")
-            u.address = form_result.get("address")
-            u.address_2 = form_result.get("address_2")
-            u.city = form_result.get("city")
-            u.state = form_result.get("state")
-            u.zip = form_result.get("zip")
-            u.tel = form_result.get("tel")
-            u.mobile = form_result.get("mobile")
-            u.portal_extension = form_result.get('extension', 0)
-            u.active = True if form_result.get("active", None) is not None else False
-            u.customer_id = session["customer_id"]
-            u.notes = form_result.get("notes")
+                    user.username = form_result.get("username")
+
+            user.password = form_result.get("password")
+            user.first_name = form_result.get("first_name")
+            user.last_name = form_result.get("last_name")
+            user.address = form_result.get("address")
+            user.address_2 = form_result.get("address_2")
+            user.city = form_result.get("city")
+            user.state = form_result.get("state")
+            user.zip = form_result.get("zip")
+            user.tel = form_result.get("tel")
+            user.mobile = form_result.get("mobile")
+            user.portal_extension = form_result.get('extension', 0)
+            user.active = True if form_result.get("active", None) is not None else False
+            user.customer_id = session["customer_id"]
+            user.notes = form_result.get("notes")
             db.commit(); db.flush()
 
             db.execute("UPDATE user_groups SET group_id = :group_id where user_id = :user_id",\
                     {'group_id': form_result.get('group_id', 3) , 'user_id': u.id})
-            db.commit(); db.flush()
 
+            db.flush()
+            db.commit()
             db.remove()
 
-        except validators.Invalid, error:
-            return 'Error updating user. Please contact support.'
+        except validators.Invalid, e:
+            return 'Error updating user: %s' % e
 
         return "User successfully updated."
 
     @authorize(logged_in)
     def update_users_grid(self, **kw):
 
-        w = loads(urllib.unquote_plus(request.params.get("data")))
+        try:
 
-        for i in w['modified']:
-            u = User.query.filter_by(customer_id=session['customer_id']).filter_by(id=i['id']).first()
-            u.first_name = i['first_name']
-            u.last_name = i['last_name']
-            u.username = i['username']
-            u.password = i['password']
+            w = loads(urllib.unquote_plus(request.params.get("data")))
 
-            db.commit(); db.flush()
-            db.remove()
+            for i in w['modified']:
+                user = User.query.filter_by(customer_id=session['customer_id'])\
+                                .filter_by(id=i['id']).first()
+                user.first_name = i['first_name']
+                user.last_name = i['last_name']
+                user.username = i['username']
+                user.password = i['password']
 
-        return "Successfully updated users."
+                db.flush()
+                db.commit()
+                db.remove()
+
+            return "Successfully updated users."
+        except Exception, e:
+            return "Error: %s" % e
 
     @restrict("GET")
     @authorize(logged_in)
@@ -664,312 +678,337 @@ class PbxController(BaseController):
         return  "Successfully deleted user."
 
     @authorize(logged_in)
+    @jsonify
     def extensions(self):
         items=[]
-        ep_stats = []
-        for endpoint in PbxEndpoint.query.filter(PbxEndpoint.user_context==session['context']).all():
-            for pbx_reg in PbxRegistration.query.filter(PbxRegistration.sip_realm==session['context']).filter(PbxRegistration.sip_user==endpoint.auth_id).all():
-                ep_stats.append({'ip': pbx_reg.network_ip, 'port': pbx_reg.network_port})
-            is_online = True if len(ep_stats) > 0 else False
-            if is_online:
-                ip = ep_stats[0]["ip"]
-                port = ep_stats[0]["port"]
-            else:
-                ip = "Unregistered"
-                port = "N/A"
+        try:
+            for endpoint in PbxEndpoint.query.filter(PbxEndpoint.user_context==session['context']).all():
+                ep_stats = []
+                for pbx_reg in PbxRegistration.query.filter(PbxRegistration.sip_realm==session['context']).filter(PbxRegistration.sip_user==endpoint.auth_id).all():
+                    ep_stats.append({'ip': pbx_reg.network_ip, 'port': pbx_reg.network_port})
+                is_online = True if len(ep_stats) > 0 else False
+                if is_online:
+                    ip = ep_stats[0]["ip"]
+                    port = ep_stats[0]["port"]
+                else:
+                    ip = "Unregistered"
+                    port = "N/A"
 
-            for user in User.query.filter_by(id=endpoint.user_id).all():
-                items.append({'id': endpoint.id, 'name': str(user.first_name)+' '+str(user.last_name), 'extension': endpoint.auth_id, 'password': endpoint.password,
-                              'outbound_caller_id_name': endpoint.outbound_caller_id_name, 'outbound_caller_id_number': endpoint.outbound_caller_id_number,
-                              'internal_caller_id_name': endpoint.internal_caller_id_name, 'internal_caller_id_number': endpoint.internal_caller_id_number,
-                              'vm_email': endpoint.vm_email, 'vm_password': endpoint.vm_password, 'vm_save': endpoint.vm_save,'vm_attach_email': endpoint.vm_attach_email,
-                              'vm_notify_email': endpoint.vm_notify_email, 'mac': endpoint.mac, 'device_type_id': endpoint.device_type_id,
-                              'transfer_fallback_extension': endpoint.transfer_fallback_extension, 'is_online': is_online, 'ip': ip, 'port': port,
-                              'auto_provision': endpoint.auto_provision})
-            ep_stats = []
+                for user in User.query.filter_by(id=endpoint.user_id).all():
+                    items.append({'id': endpoint.id, 'name': str(user.first_name)+' '+str(user.last_name), 'extension': endpoint.auth_id, 'password': endpoint.password,
+                                  'outbound_caller_id_name': endpoint.outbound_caller_id_name, 'outbound_caller_id_number': endpoint.outbound_caller_id_number,
+                                  'internal_caller_id_name': endpoint.internal_caller_id_name, 'internal_caller_id_number': endpoint.internal_caller_id_number,
+                                  'vm_email': endpoint.vm_email, 'vm_password': endpoint.vm_password, 'vm_save': endpoint.vm_save,'vm_attach_email': endpoint.vm_attach_email,
+                                  'vm_notify_email': endpoint.vm_notify_email, 'mac': endpoint.mac, 'device_type_id': endpoint.device_type_id,
+                                  'transfer_fallback_extension': endpoint.transfer_fallback_extension, 'is_online': is_online, 'ip': ip, 'port': port,
+                                  'auto_provision': endpoint.auto_provision})
 
-        db.remove()
+            db.remove()
+            return {'identifier': 'extension', 'label': 'name', 'items': items}
 
-        out = dict({'identifier': 'extension', 'label': 'name', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
+        except KeyError, e:
+            db.remove()
+            return {'identifier': 'id', 'label': 'name', 'items': [], 'is_error': True, 'message': 'KeyError: ' + str(e)}
 
-        return response(request.environ, self.start_response)
+        except Exception, e:
+            db.remove()
+            return {'identifier': 'id', 'label': 'name', 'items': [], 'is_error': True, 'message': 'Exception: ' + str(e)}
 
     @authorize(logged_in)
+    @jsonify
     def extension_by_id(self, id, **kw):
         items=[]
-        for endpoint in PbxEndpoint.query.filter(PbxEndpoint.user_context==session['context']).filter(PbxEndpoint.id==id).all():
-            for user in User.query.filter_by(id=endpoint.user_id).all():
-                items.append({'id': endpoint.id, 'name': str(user.first_name)+' '+str(user.last_name), 'extension': endpoint.auth_id, 'password': endpoint.password,
-                              'outbound_caller_id_name': endpoint.outbound_caller_id_name, 'outbound_caller_id_number': endpoint.outbound_caller_id_number,
-                              'internal_caller_id_name': endpoint.internal_caller_id_name, 'internal_caller_id_number': endpoint.internal_caller_id_number,
-                              'vm_email': endpoint.vm_email, 'vm_password': endpoint.vm_password, 'vm_attach_email': endpoint.vm_attach_email, 'vm_save': endpoint.vm_save,
-                              'vm_notify_email': endpoint.vm_notify_email, 'calling_rule_id': endpoint.calling_rule_id,
-                              'transfer_fallback_extension': endpoint.transfer_fallback_extension, 'find_me': endpoint.find_me, 'follow_me_1': endpoint.follow_me_1,
-                              'follow_me_2': endpoint.follow_me_2, 'follow_me_3': endpoint.follow_me_3, 'follow_me_4': endpoint.follow_me_4, 'call_timeout': endpoint.call_timeout,
-                              'timeout_destination': endpoint.timeout_destination, 'record_inbound_calls': endpoint.record_inbound_calls, 'record_outbound_calls': endpoint.record_outbound_calls,
-                              'mac': endpoint.mac, 'device_type_id': endpoint.device_type_id, 'auto_provision': endpoint.auto_provision, 'include_xml_directory': endpoint.include_xml_directory})
-        db.remove()
 
-        out = dict({'identifier': 'extension', 'label': 'name', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
+        try:
+            for endpoint in PbxEndpoint.query.filter(PbxEndpoint.user_context==session['context']).filter(PbxEndpoint.id==id).all():
+                for user in User.query.filter_by(id=endpoint.user_id).all():
+                    items.append({'id': endpoint.id, 'name': str(user.first_name)+' '+str(user.last_name), 'extension': endpoint.auth_id, 'password': endpoint.password,
+                                  'outbound_caller_id_name': endpoint.outbound_caller_id_name, 'outbound_caller_id_number': endpoint.outbound_caller_id_number,
+                                  'internal_caller_id_name': endpoint.internal_caller_id_name, 'internal_caller_id_number': endpoint.internal_caller_id_number,
+                                  'vm_email': endpoint.vm_email, 'vm_password': endpoint.vm_password, 'vm_attach_email': endpoint.vm_attach_email, 'vm_save': endpoint.vm_save,
+                                  'vm_notify_email': endpoint.vm_notify_email, 'calling_rule_id': endpoint.calling_rule_id,
+                                  'transfer_fallback_extension': endpoint.transfer_fallback_extension, 'find_me': endpoint.find_me, 'follow_me_1': endpoint.follow_me_1,
+                                  'follow_me_2': endpoint.follow_me_2, 'follow_me_3': endpoint.follow_me_3, 'follow_me_4': endpoint.follow_me_4, 'call_timeout': endpoint.call_timeout,
+                                  'timeout_destination': endpoint.timeout_destination, 'record_inbound_calls': endpoint.record_inbound_calls, 'record_outbound_calls': endpoint.record_outbound_calls,
+                                  'mac': endpoint.mac, 'device_type_id': endpoint.device_type_id, 'auto_provision': endpoint.auto_provision, 'include_xml_directory': endpoint.include_xml_directory})
+            db.remove()
+            return {'identifier': 'extension', 'label': 'name', 'items': items}
 
-        return response(request.environ, self.start_response)
+        except KeyError, e:
+            db.remove()
+            return {'identifier': 'id', 'label': 'name', 'items': [], 'is_error': True, 'message': 'KeyError: ' + str(e)}
+
+        except Exception, e:
+            db.remove()
+            return {'identifier': 'id', 'label': 'name', 'items': [], 'is_error': True, 'message': 'Exception: ' + str(e)}
 
     @authorize(logged_in)
     def add_extension(self):
         schema = ExtensionForm()
-        msg=""
-        co = Customer.query.filter(Customer.id==session['customer_id']).first()
+        customer = Customer.query.filter(Customer.id==session['customer_id']).first()
+
+        if customer.max_extensions >= PbxEndpoint.query.filter(Customer.id==session['customer_id']).count():
+            return "Sorry, so have reached your maximum extension limit. Please contact customer service."
 
         try:
             form_result = schema.to_python(request.params)
-            e = PbxEndpoint()
-            e.auth_id = form_result.get('extension')
-            e.password = form_result.get('password')
-            e.outbound_caller_id_name = form_result.get('outbound_caller_id_name')
-            e.outbound_caller_id_number = form_result.get('outbound_caller_id_number')
-            e.internal_caller_id_name = form_result.get('internal_caller_id_name')
-            e.internal_caller_id_number = form_result.get('internal_caller_id_number')
-            e.vm_email = form_result.get('vm_email')
-            e.vm_password = form_result.get('vm_password')
-            e.vm_attach_email = form_result.get('vm_attach_email')
-            e.vm_notify_email = form_result.get('vm_notify_email')
-            e.vm_save = form_result.get('vm_save')
-            e.transfer_fallback_extension = form_result.get('transfer_fallback_extension')
-            e.accountcode = co.tel
-            e.follow_me_1 = form_result.get('follow_me_1')
-            e.follow_me_2 = form_result.get('follow_me_2')
-            e.follow_me_3 = form_result.get('follow_me_3')
-            e.follow_me_4 = form_result.get('follow_me_4')
-            e.call_timeout = form_result.get('call_timeout', 20)
+            endpoint = PbxEndpoint()
+            endpoint.auth_id = form_result.get('extension')
+            endpoint.password = form_result.get('password')
+            endpoint.outbound_caller_id_name = form_result.get('outbound_caller_id_name')
+            endpoint.outbound_caller_id_number = form_result.get('outbound_caller_id_number')
+            endpoint.internal_caller_id_name = form_result.get('internal_caller_id_name')
+            endpoint.internal_caller_id_number = form_result.get('internal_caller_id_number')
+            endpoint.vm_email = form_result.get('vm_email')
+            endpoint.vm_password = form_result.get('vm_password')
+            endpoint.vm_attach_email = form_result.get('vm_attach_email')
+            endpoint.vm_notify_email = form_result.get('vm_notify_email')
+            endpoint.vm_save = form_result.get('vm_save')
+            endpoint.transfer_fallback_extension = form_result.get('transfer_fallback_extension')
+            endpoint.accountcode = customer.tel
+            endpoint.follow_me_1 = form_result.get('follow_me_1')
+            endpoint.follow_me_2 = form_result.get('follow_me_2')
+            endpoint.follow_me_3 = form_result.get('follow_me_3')
+            endpoint.follow_me_4 = form_result.get('follow_me_4')
+            endpoint.call_timeout = form_result.get('call_timeout', 20)
             time_dest = form_result.get('timeout_destination')
-            e.timeout_destination = time_dest if time_dest.isdigit() else None
-            e.record_inbound_calls = form_result.get('record_inbound_calls', False)
-            e.record_outbound_calls = form_result.get('record_outbound_calls', False)
-            e.user_id = int(session['user_id'])
-            e.user_context = session['context']
-            e.force_transfer_context = session['context']
-            e.user_originated = u'true'
-            e.toll_allow = u'domestic'
-            e.accountcode = co.tel
+            endpoint.timeout_destination = time_dest if time_dest.isdigit() else None
+            endpoint.record_inbound_calls = form_result.get('record_inbound_calls', False)
+            endpoint.record_outbound_calls = form_result.get('record_outbound_calls', False)
+            endpoint.user_id = int(session['user_id'])
+            endpoint.user_context = session['context']
+            endpoint.force_transfer_context = session['context']
+            endpoint.user_originated = u'true'
+            endpoint.toll_allow = u'domestic'
+            endpoint.accountcode = customer.tel
             calling_rule_id = form_result.get('calling_rule_id')
-            e.calling_rule_id = calling_rule_id if calling_rule_id.isdigit() else 0
-            e.find_me = True if form_result.get('find_me')=="true" else False
-            e.auto_provision = True if form_result.get('auto_provision')=="true" else False
-            e.device_type_id = form_result.get('device_type_id') if form_result.get('device_type_id') else 0
-            e.include_xml_directory = True if form_result.get('include_xml_directory')=="true" else False
-            e.mac = form_result.get('mac', None)
+            endpoint.calling_rule_id = calling_rule_id if calling_rule_id.isdigit() else 0
+            endpoint.find_me = True if form_result.get('find_me')=="true" else False
+            endpoint.auto_provision = True if form_result.get('auto_provision')=="true" else False
+            endpoint.device_type_id = form_result.get('device_type_id') if form_result.get('device_type_id') else 0
+            endpoint.include_xml_directory = True if form_result.get('include_xml_directory')=="true" else False
+            endpoint.mac = form_result.get('mac', None)
 
-            db.add(e)
-            db.commit(); db.flush()
+            db.add(endpoint)
+            db.flush()
+            db.commit()
 
-            r = PbxRoute()
-            r.context = session['context']
-            r.domain = session['context']
-            r.name = form_result.get("extension")
-            r.continue_route = True
-            r.voicemail_enable = True
-            r.voicemail_ext = form_result.get("extension")
-            r.pbx_route_type_id = 1
-            r.pbx_to_id = e.id
+            route = PbxRoute()
+            route.context = session['context']
+            route.domain = session['context']
+            route.name = form_result.get("extension")
+            route.continue_route = True
+            route.voicemail_enable = True
+            route.voicemail_ext = form_result.get("extension")
+            route.pbx_route_type_id = 1
+            route.pbx_to_id = endpoint.id
 
-            db.add(r)
-            db.commit(); db.flush()
+            db.add(route)
+            db.flush()
+            db.commit()
 
-            con = PbxCondition()
-            con.context = session['context']
-            con.domain = session['context']
-            con.field = u'destination_number'
-            con.expression = u'^('+form_result.get("extension")+')$'
-            con.pbx_route_id = r.id
+            condition = PbxCondition()
+            condition.context = session['context']
+            condition.domain = session['context']
+            condition.field = u'destination_number'
+            condition.expression = u'^('+form_result.get("extension")+')$'
+            condition.pbx_route_id = route.id
 
-            db.add(con)
-            db.commit(); db.flush()
+            db.add(condition)
+            db.flush()
+            db.commit()
 
-            s = PbxAction()
-            s.pbx_condition_id = con.id
-            s.context = session['context']
-            s.domain = session['context']
-            s.precedence = 1
-            s.application = u'set'
-            s.data = u'hangup_after_bridge=true'
+            action = PbxAction()
+            action.pbx_condition_id = condition.id
+            action.context = session['context']
+            action.domain = session['context']
+            action.precedence = 1
+            action.application = u'set'
+            action.data = u'hangup_after_bridge=true'
 
-            db.add(s)
-            db.commit(); db.flush()
+            db.add(action)
+            db.flush()
+            db.commit()
 
-            s = PbxAction()
-            s.pbx_condition_id = con.id
-            s.context = session['context']
-            s.domain = session['context']
-            s.precedence = 1
-            s.application = u'set'
-            s.data = u'continue_on_fail=true'
+            action = PbxAction()
+            action.pbx_condition_id = condition.id
+            action.context = session['context']
+            action.domain = session['context']
+            action.precedence = 1
+            action.application = u'set'
+            action.data = u'continue_on_fail=true'
 
-            db.add(s)
-            db.commit(); db.flush()
+            db.add(action)
+            db.flush()
+            db.commit()
 
-            s = PbxAction()
-            s.pbx_condition_id = con.id
-            s.context = session['context']
-            s.domain = session['context']
-            s.precedence = 2
-            s.application = u'set'
-            s.data = u'call_timeout='+form_result.get('call_timeout', 20)
+            action = PbxAction()
+            action.pbx_condition_id = condition.id
+            action.context = session['context']
+            action.domain = session['context']
+            action.precedence = 2
+            action.application = u'set'
+            action.data = u'call_timeout='+form_result.get('call_timeout', 20)
 
-            db.add(s)
-            db.commit(); db.flush()
+            db.add(action)
+            db.flush()
+            db.commit()
 
-            s = PbxAction()
-            s.pbx_condition_id = con.id
-            s.context = session['context']
-            s.domain = session['context']
-            s.precedence = 3
-            s.application = u'bridge'
-            s.data = u'{force_transfer_context='+session['context']+'}sofia/'\
+            action = PbxAction()
+            action.pbx_condition_id = condition.id
+            action.context = session['context']
+            action.domain = session['context']
+            action.precedence = 3
+            action.application = u'bridge'
+            action.data = u'{force_transfer_context='+session['context']+'}sofia/'\
                      +str(get_profile())+'/'+form_result.get("extension")+'%'+session['context']
 
-            db.add(s)
-            db.commit(); db.flush()
+            db.add(action)
+            db.flush()
+            db.commit()
 
-        except validators.Invalid, error:
+        except validators.Invalid, e:
             db.remove()
-            return 'Validation Error: %s' % error
+            return 'Validation Error: %s' % e
 
         return "Successfully added extension %s" % form_result.get('extension')
-
 
     @restrict("POST")
     @authorize(logged_in)
     def edit_extension(self, **kw):
         schema = ExtEditForm()
-        msg=""
         try:
             form_result = schema.to_python(request.params)
-            e = PbxEndpoint.query.filter(PbxEndpoint.id==form_result.get('extension_id')).filter(PbxEndpoint.user_context==session['context']).first()
-            e.password = form_result.get('password')
-            e.outbound_caller_id_name = form_result.get('outbound_caller_id_name')
-            e.outbound_caller_id_number = form_result.get('outbound_caller_id_number')
-            e.internal_caller_id_name = form_result.get('internal_caller_id_name')
-            e.internal_caller_id_number = form_result.get('internal_caller_id_number')
-            e.vm_email = form_result.get('vm_email')
-            e.vm_password = form_result.get('vm_password')
-            e.vm_attach_email = True if form_result.get('vm_attach_email')=="true" else False
-            e.vm_notify_email = True if form_result.get('vm_notify_email')=="true" else False
-            e.vm_save = True if form_result.get('vm_save')=="true" else False
-            e.transfer_fallback_extension = form_result.get('transfer_fallback_extension')
-            e.follow_me_1 = form_result.get('follow_me_1')
-            e.follow_me_2 = form_result.get('follow_me_2')
-            e.follow_me_3 = form_result.get('follow_me_3')
-            e.follow_me_4 = form_result.get('follow_me_4')
-            e.call_timeout = form_result.get('call_timeout')
+            endpoint = PbxEndpoint.query.filter(PbxEndpoint.id==form_result.get('extension_id')).filter(PbxEndpoint.user_context==session['context']).first()
+            endpoint.password = form_result.get('password')
+            endpoint.outbound_caller_id_name = form_result.get('outbound_caller_id_name')
+            endpoint.outbound_caller_id_number = form_result.get('outbound_caller_id_number')
+            endpoint.internal_caller_id_name = form_result.get('internal_caller_id_name')
+            endpoint.internal_caller_id_number = form_result.get('internal_caller_id_number')
+            endpoint.vm_email = form_result.get('vm_email')
+            endpoint.vm_password = form_result.get('vm_password')
+            endpoint.vm_attach_email = True if form_result.get('vm_attach_email')=="true" else False
+            endpoint.vm_notify_email = True if form_result.get('vm_notify_email')=="true" else False
+            endpoint.vm_save = True if form_result.get('vm_save')=="true" else False
+            endpoint.transfer_fallback_extension = form_result.get('transfer_fallback_extension')
+            endpoint.follow_me_1 = form_result.get('follow_me_1')
+            endpoint.follow_me_2 = form_result.get('follow_me_2')
+            endpoint.follow_me_3 = form_result.get('follow_me_3')
+            endpoint.follow_me_4 = form_result.get('follow_me_4')
+            endpoint.call_timeout = form_result.get('call_timeout')
             time_dest = form_result.get('timeout_destination')
-            e.find_me = True if form_result.get('find_me')=="true" else False
-            e.timeout_destination = time_dest if time_dest.isdigit() else None
-            e.record_inbound_calls = form_result.get('record_inbound_calls', False)
-            e.record_outbound_calls = form_result.get('record_outbound_calls', False)
-            e.auto_provision = True if form_result.get('auto_provision')=="true" else False
-            e.device_type_id = form_result.get('device_type_id') if form_result.get('device_type_id') else 0
-            e.include_xml_directory = True if form_result.get('include_xml_directory')=="true" else False
-            e.mac = form_result.get('mac', None)
-            e.calling_rule_id = 0 if form_result.get('calling_rule_id', None) is not None else int(form_result.get('calling_rule_id', None))
+            endpoint.find_me = True if form_result.get('find_me')=="true" else False
+            endpoint.timeout_destination = time_dest if time_dest.isdigit() else None
+            endpoint.record_inbound_calls = form_result.get('record_inbound_calls', False)
+            endpoint.record_outbound_calls = form_result.get('record_outbound_calls', False)
+            endpoint.auto_provision = True if form_result.get('auto_provision')=="true" else False
+            endpoint.device_type_id = form_result.get('device_type_id') if form_result.get('device_type_id') else 0
+            endpoint.include_xml_directory = True if form_result.get('include_xml_directory')=="true" else False
+            endpoint.mac = form_result.get('mac', None)
+            endpoint.calling_rule_id = 0 if form_result.get('calling_rule_id', None) is not None else int(form_result.get('calling_rule_id', None))
 
-            db.add(e)
-            db.commit(); db.flush()
+            db.add(endpoint)
+            db.flush()
+            db.commit()
 
-            r = PbxRoute.query.filter(PbxRoute.pbx_route_type_id==1).\
-            filter(PbxRoute.name==e.auth_id).filter(PbxRoute.context==session['context']).first()
+            route = PbxRoute.query.filter(PbxRoute.pbx_route_type_id==1).\
+            filter(PbxRoute.name==endpoint.auth_id).filter(PbxRoute.context==session['context']).first()
 
-            delete_conditions(r.id)
+            delete_conditions(route.id)
 
-            con = PbxCondition()
-            con.context = session['context']
-            con.domain = session['context']
-            con.field = u'destination_number'
-            con.expression = u'^('+e.auth_id+')$'
-            con.pbx_route_id = r.id
+            condition = PbxCondition()
+            condition.context = session['context']
+            condition.domain = session['context']
+            condition.field = u'destination_number'
+            condition.expression = u'^('+endpoint.auth_id+')$'
+            condition.pbx_route_id = route.id
 
-            db.add(con)
-            db.commit(); db.flush()
+            db.add(condition)
+            db.flush()
+            db.commit()
 
-            s = PbxAction()
-            s.pbx_condition_id = con.id
-            s.context = session['context']
-            s.domain = session['context']
-            s.precedence = 1
-            s.application = u'set'
-            s.data = u'hangup_after_bridge=true'
+            action = PbxAction()
+            action.pbx_condition_id = condition.id
+            action.context = session['context']
+            action.domain = session['context']
+            action.precedence = 1
+            action.application = u'set'
+            action.data = u'hangup_after_bridge=true'
 
-            db.add(s)
-            db.commit(); db.flush()
+            db.add(action)
+            db.flush()
+            db.commit()
 
-            s = PbxAction()
-            s.pbx_condition_id = con.id
-            s.context = session['context']
-            s.domain = session['context']
-            s.precedence = 1
-            s.application = u'set'
-            s.data = u'continue_on_fail=true'
+            action = PbxAction()
+            action.pbx_condition_id = condition.id
+            action.context = session['context']
+            action.domain = session['context']
+            action.precedence = 1
+            action.application = u'set'
+            action.data = u'continue_on_fail=true'
 
-            db.add(s)
-            db.commit(); db.flush()
+            db.add(action)
+            db.flush()
+            db.commit();
 
-            s = PbxAction()
-            s.pbx_condition_id = con.id
-            s.context = session['context']
-            s.domain = session['context']
-            s.precedence = 2
-            s.application = u'set'
-            s.data = u'call_timeout='+form_result.get('call_timeout', 20)
+            action = PbxAction()
+            action.pbx_condition_id = condition.id
+            action.context = session['context']
+            action.domain = session['context']
+            action.precedence = 2
+            action.application = u'set'
+            action.data = u'call_timeout='+form_result.get('call_timeout', 20)
 
-            db.add(s)
-            db.commit(); db.flush()
+            db.add(action)
+            db.flush()
+            db.commit()
 
-            s = PbxAction()
-            s.pbx_condition_id = con.id
-            s.context = session['context']
-            s.domain = session['context']
-            s.precedence = 3
-            s.application = u'bridge'
-            s.data = u'{force_transfer_context='+session['context']+'}sofia/'+str(get_profile())+'/'+e.auth_id+'%'+session['context']
+            action = PbxAction()
+            action.pbx_condition_id = condition.id
+            action.context = session['context']
+            action.domain = session['context']
+            action.precedence = 3
+            action.application = u'bridge'
+            action.data = u'{force_transfer_context='+session['context']+'}sofia/'+str(get_profile())+'/'+endpoint.auth_id+'%'+session['context']
 
-            db.add(s)
-            db.commit(); db.flush()
-
+            db.add(action)
+            db.flush()
+            db.commit()
             db.remove()
 
-        except validators.Invalid, error:
-            msg='Validation Error: %s' % error
-
-        finally:
-            if len(msg)>0:
-                return msg
-            else:
-                return "Successfully edited extension %s" % e.auth_id
             db.remove()
+            return "Successfully edited extension %s." % endpoint.auth_id
+
+        except validators.Invalid, e:
+            return 'Validation Error: %s' % e
+
+
 
     @authorize(logged_in)
     def update_ext_grid(self, **kw):
 
-        w = loads(urllib.unquote_plus(request.params.get("data")))
+        try:
 
-        e = None
+            w = loads(urllib.unquote_plus(request.params.get("data")))
 
-        for i in w['modified']:
-            if i['name'].isdigit():
-                id = i['name']
-                u = User.query.filter(User.id==int(id)).filter_by(customer_id=session['customer_id']).first()
-                e = PbxEndpoint.query.filter(PbxEndpoint.auth_id==i['extension']).filter_by(user_context=session['context']).first()
-                e.user_id = u.id
-            else:
-                e = PbxEndpoint.query.filter(PbxEndpoint.auth_id==i['extension']).filter_by(user_context=session['context']).first()
+            e = None
 
-            e.password = i['password']
+            for i in w['modified']:
+                if i['name'].isdigit():
+                    id = i['name']
+                    u = User.query.filter(User.id==int(id)).filter_by(customer_id=session['customer_id']).first()
+                    e = PbxEndpoint.query.filter(PbxEndpoint.auth_id==i['extension']).filter_by(user_context=session['context']).first()
+                    e.user_id = u.id
+                else:
+                    e = PbxEndpoint.query.filter(PbxEndpoint.auth_id==i['extension']).filter_by(user_context=session['context']).first()
 
-            db.commit(); db.flush()
-            db.remove()
+                e.password = i['password']
+
+                db.commit(); db.flush()
+                db.remove()
+
+        except Exception, e:
+            return "Error: %s" % e
 
         return "Successfully updated extension."
 
@@ -985,47 +1024,56 @@ class PbxController(BaseController):
         return  "Successfully deleted extension."
 
     @authorize(logged_in)
+    @jsonify
     def vextensions(self):
         items=[]
-        for extension in PbxVirtualExtension.query.filter_by(context=session['context']).all():
-            items.append({'id': extension.id, 'extension': extension.extension, 'did': extension.did,
-                          'timeout': extension.timeout, 'pbx_route_id': extension.pbx_route_id})
 
-        db.remove()
+        try:
 
-        out = dict({'identifier': 'id', 'label': 'extension', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
+            for extension in PbxVirtualExtension.query.filter_by(context=session['context']).all():
+                items.append({'id': extension.id, 'extension': extension.extension, 'did': extension.did,
+                              'timeout': extension.timeout, 'pbx_route_id': extension.pbx_route_id})
 
-        return response(request.environ, self.start_response)
+            db.remove()
+            return {'identifier': 'id', 'label': 'extension', 'items': items}
+
+        except KeyError, e:
+            db.remove()
+            return {'identifier': 'id', 'label': 'extension', 'items': [], 'is_error': True, 'message': 'KeyError: ' + str(e)}
+
+        except Exception, e:
+            db.remove()
+            return {'identifier': 'id', 'label': 'extension', 'items': [], 'is_error': True, 'message': 'Exception: ' + str(e)}
 
     @authorize(logged_in)
     def vextension_add(self, **kw):
         schema = VirtualExtensionForm()
         try:
             form_result = schema.to_python(request.params)
-            sve = PbxVirtualExtension()
-            sve.extension = form_result.get('vextension_number')
-            sve.did = form_result.get('vextension_did')
-            sve.context = session['context']
-            sve.timeout = form_result.get('timeout')
-            sve.pbx_route_id = form_result.get('no_answer_destination')
+            virtual_extension = PbxVirtualExtension()
+            virtual_extension.extension = form_result.get('vextension_number')
+            virtual_extension.did = form_result.get('vextension_did')
+            virtual_extension.context = session['context']
+            virtual_extension.timeout = form_result.get('timeout')
+            virtual_extension.pbx_route_id = form_result.get('no_answer_destination')
 
-            db.add(sve)
-            db.commit(); db.flush()
+            db.add(virtual_extension)
+            db.flush()
+            db.commit()
 
-            r = PbxRoute()
-            r.context = session['context']
-            r.domain = session['context']
-            r.name = form_result.get('vextension_number')
-            r.continue_route = True
-            r.voicemail_enable = True
-            r.voicemail_ext = form_result.get('vextension_number')
-            r.pbx_route_type_id = 2
-            r.pbx_to_id = sve.id
+            route = PbxRoute()
+            route.context = session['context']
+            route.domain = session['context']
+            route.name = form_result.get('vextension_number')
+            route.continue_route = True
+            route.voicemail_enable = True
+            route.voicemail_ext = form_result.get('vextension_number')
+            route.pbx_route_type_id = 2
+            route.pbx_to_id = virtual_extension.id
 
-            db.add(r)
-            db.commit(); db.flush()
+            db.add(route)
+            db.flush()
+            db.commit()
 
         except validators.Invalid, error:
             return 'Validation Error: %s' % error
@@ -1053,11 +1101,12 @@ class PbxController(BaseController):
             for i in w['modified']:
                 if not len(i['did']) == 10 or not str(i['did']).strip().isdigit():
                     return "A virtual extension needs to be exactly 10 digits."
-                ve = PbxVirtualExtension.query.filter_by(id=i['id']).filter_by(context=session['context']).first()
-                ve.did = i['did']
-                ve.timeout = i['timeout']
-                ve.pbx_route_id = i['pbx_route_id']
-                db.commit(); db.flush()
+                virtual_extension = PbxVirtualExtension.query.filter_by(id=i['id']).filter_by(context=session['context']).first()
+                virtual_extension.did = i['did']
+                virtual_extension.timeout = i['timeout']
+                virtual_extension.pbx_route_id = i['pbx_route_id']
+                db.flush()
+                db.commit()
 
         except DataInputError, error:
             db.remove()
@@ -1066,46 +1115,53 @@ class PbxController(BaseController):
         return "Successfully updated virtual extension."
 
     @authorize(logged_in)
+    @jsonify
     def vmboxes(self):
         items=[]
-        for extension in PbxVirtualMailbox.query.filter_by(context=session['context']).all():
-            items.append({'id': extension.id, 'extension': extension.extension, 'vm_password': extension.vm_password})
-        db.remove()
+        try:
+            for virtual_mailbox in PbxVirtualMailbox.query.filter_by(context=session['context']).all():
+                items.append({'id': virtual_mailbox.id, 'extension': virtual_mailbox.extension, 'vm_password': virtual_mailbox.vm_password})
+            db.remove()
 
-        out = dict({'identifier': 'id', 'label': 'extension', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
+            return {'identifier': 'id', 'label': 'extension', 'items': items}
 
-        return response(request.environ, self.start_response)
+        except Exception, e:
+            return {'identifier': 'id', 'label': 'extension', 'items': [], 'is_error': True, 'message': 'Exception: ' + str(e)}
 
     @authorize(logged_in)
+    @jsonify
     def calling_rules(self):
         items=[]
-        for rule in PbxCallingRule.query.all():
-            items.append({'id': rule.id, 'name': rule.name})
-        db.remove()
 
-        out = dict({'identifier': 'id', 'label': 'name', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
+        try:
+            for rule in PbxCallingRule.query.all():
+                items.append({'id': rule.id, 'name': rule.name})
 
-        return response(request.environ, self.start_response)
+            db.remove()
+
+            return {'identifier': 'id', 'label': 'name', 'items': items}
+
+        except Exception, e:
+            return {'identifier': 'id', 'label': 'name', 'items': [], 'is_error': True, 'message': 'Exception: ' + str(e)}
+
 
     @authorize(logged_in)
+    @jsonify
     def vmbox_by_id(self, id, **kw):
         items=[]
-        extension = PbxVirtualMailbox.query.filter_by(context=session['context']).filter_by(id=id).first()
-        items.append({'id': extension.id, 'extension': extension.extension, 'vm_password': extension.vm_password,
-                      'skip_greeting': extension.skip_greeting, 'audio_file': extension.audio_file,
-                      'vm_email': extension.vm_email, 'vm_attach_email': extension.vm_attach_email,
-                      'vm_notify_email': extension.vm_notify_email, 'vm_save': extension.vm_save})
-        db.remove()
+        try:
+            extension = PbxVirtualMailbox.query.filter_by(context=session['context']).filter_by(id=id).first()
+            items.append({'id': extension.id, 'extension': extension.extension, 'vm_password': extension.vm_password,
+                          'skip_greeting': extension.skip_greeting, 'audio_file': extension.audio_file,
+                          'vm_email': extension.vm_email, 'vm_attach_email': extension.vm_attach_email,
+                          'vm_notify_email': extension.vm_notify_email, 'vm_save': extension.vm_save})
+            db.remove()
 
-        out = dict({'identifier': 'id', 'label': 'extension', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
+            return {'identifier': 'id', 'label': 'extension', 'items': items}
 
-        return response(request.environ, self.start_response)
+        except Exception, e:
+            return {'identifier': 'id', 'label': 'extension', 'items': [], 'is_error': True, 'message': 'Exception: ' + str(e)}
+
 
     @authorize(logged_in)
     def vmbox_edit(self, **kw):
@@ -1113,72 +1169,76 @@ class PbxController(BaseController):
         try:
             form_result = schema.to_python(request.params)
 
-            vm = PbxVirtualMailbox.query.filter_by(id=form_result.get('vmbox_id'))\
-                .filter_by(context=session['context']).first()
-            vm.vm_password = form_result.get('vm_password')
-            vm.context = session['context']
-            vm.skip_greeting =  True if form_result.get('skip_greeting')=="true" else False
-            vm.audio_file = form_result.get('audio_file', None)
-            vm.vm_email = form_result.get('vm_email', None)
-            vm.vm_password = form_result.get('vm_password', u'9999')
-            vm.vm_attach_email = True if form_result.get('vm_attach_email')=="true" else False
-            vm.vm_notify_email = True if form_result.get('vm_notify_email')=="true" else False
-            vm.vm_save = True if form_result.get('vm_save')=="true" else False
+            virtual_mailbox = PbxVirtualMailbox.query.filter_by(id=form_result.get('vmbox_id'))\
+                        .filter_by(context=session['context']).first()
+            virtual_mailbox.vm_password = form_result.get('vm_password')
+            virtual_mailbox.context = session['context']
+            virtual_mailbox.skip_greeting =  True if form_result.get('skip_greeting')=="true" else False
+            virtual_mailbox.audio_file = form_result.get('audio_file', None)
+            virtual_mailbox.vm_email = form_result.get('vm_email', None)
+            virtual_mailbox.vm_password = form_result.get('vm_password', u'9999')
+            virtual_mailbox.vm_attach_email = True if form_result.get('vm_attach_email')=="true" else False
+            virtual_mailbox.vm_notify_email = True if form_result.get('vm_notify_email')=="true" else False
+            virtual_mailbox.vm_save = True if form_result.get('vm_save')=="true" else False
 
-            PbxRoute.query.filter_by(pbx_route_type_id=3).filter_by(pbx_to_id=vm.id).delete()
-            db.commit(); db.flush()
+            PbxRoute.query.filter_by(pbx_route_type_id=3).filter_by(pbx_to_id=virtual_mailbox.id).delete()
+            db.flush()
+            db.commit()
 
-            r = PbxRoute()
-            r.context = session['context']
-            r.domain = session['context']
-            r.name = vm.extension
-            r.continue_route = True
-            r.voicemail_enable = True
-            r.voicemail_ext = vm.extension
-            r.pbx_route_type_id = 3
-            r.pbx_to_id = vm.id
+            route = PbxRoute()
+            route.context = session['context']
+            route.domain = session['context']
+            route.name = virtual_mailbox.extension
+            route.continue_route = True
+            route.voicemail_enable = True
+            route.voicemail_ext = virtual_mailbox.extension
+            route.pbx_route_type_id = 3
+            route.pbx_to_id = virtual_mailbox.id
 
             db.add(r)
-            db.commit(); db.flush()
+            db.flush()
+            db.commit()
 
         except validators.Invalid, error:
             return 'Validation Error: %s' % error
 
-            db.remove()
-            return "Successfully added virtual voicemail box."
+        db.remove()
+        return "Successfully added virtual voicemail box."
 
     @authorize(logged_in)
     def vmbox_add(self, **kw):
         schema = VirtualMailboxForm()
         try:
             form_result = schema.to_python(request.params)
-            vm = PbxVirtualMailbox()
-            vm.extension = form_result.get('vmbox_number')
-            vm.vm_password = form_result.get('vm_password')
-            vm.context = session['context']
-            vm.skip_greeting =  True if form_result.get('skip_greeting')=="true" else False
-            vm.audio_file = form_result.get('audio_file', None)
-            vm.vm_email = form_result.get('vm_email', None)
-            vm.vm_password = form_result.get('vm_password', u'9999')
-            vm.vm_attach_email = True if form_result.get('vm_attach_email')=="true" else False
-            vm.vm_notify_email = True if form_result.get('vm_notify_email')=="true" else False
-            vm.vm_save = True if form_result.get('vm_save')=="true" else False
+            virtual_mailbox = PbxVirtualMailbox()
+            virtual_mailbox.extension = form_result.get('vmbox_number')
+            virtual_mailbox.vm_password = form_result.get('vm_password')
+            virtual_mailbox.context = session['context']
+            virtual_mailbox.skip_greeting =  True if form_result.get('skip_greeting')=="true" else False
+            virtual_mailbox.audio_file = form_result.get('audio_file', None)
+            virtual_mailbox.vm_email = form_result.get('vm_email', None)
+            virtual_mailbox.vm_password = form_result.get('vm_password', u'9999')
+            virtual_mailbox.vm_attach_email = True if form_result.get('vm_attach_email')=="true" else False
+            virtual_mailbox.vm_notify_email = True if form_result.get('vm_notify_email')=="true" else False
+            virtual_mailbox.vm_save = True if form_result.get('vm_save')=="true" else False
 
-            db.add(vm)
-            db.commit(); db.flush()
+            db.add(virtual_mailbox)
+            db.flush()
+            db.commit()
 
-            r = PbxRoute()
-            r.context = session['context']
-            r.domain = session['context']
-            r.name = form_result.get('vmbox_number')
-            r.continue_route = True
-            r.voicemail_enable = True
-            r.voicemail_ext = form_result.get('vmbox_number')
-            r.pbx_route_type_id = 3
-            r.pbx_to_id = vm.id
+            route = PbxRoute()
+            route.context = session['context']
+            route.domain = session['context']
+            route.name = form_result.get('vmbox_number')
+            route.continue_route = True
+            route.voicemail_enable = True
+            route.voicemail_ext = form_result.get('vmbox_number')
+            route.pbx_route_type_id = 3
+            route.pbx_to_id = virtual_mailbox.id
 
-            db.add(r)
-            db.commit(); db.flush()
+            db.add(route)
+            db.flush()
+            db.commit()
 
         except validators.Invalid, error:
             return 'Validation Error: %s' % error
@@ -1195,9 +1255,10 @@ class PbxController(BaseController):
             for i in w['modified']:
                 if not str(i['extension']).strip().isdigit() or not str(i['pin']).strip().isdigit():
                     return "A virtual mailbox and pin needs to be exactly 3 or 4 numbers."
-                vm = PbxVirtualMailbox.query.filter_by(id=i['id']).filter_by(context=session['context']).first()
-                vm.vm_password = i['vm_password'].strip()
-                db.commit(); db.flush()
+                virtual_mailbox = PbxVirtualMailbox.query.filter_by(id=i['id']).filter_by(context=session['context']).first()
+                virtual_mailbox.vm_password = i['vm_password'].strip()
+                db.flush()
+                db.commit()
                 db.remove()
 
         except DataInputError, error:
@@ -1218,40 +1279,44 @@ class PbxController(BaseController):
         return  "Successfully deleted virtual mailbox."
 
     @authorize(logged_in)
+    @jsonify
     def groups(self):
-        items=[]; members = []
-        for group in PbxGroup.query.filter_by(context=session['context']).all():
+        items=[]
+
+        try:
+            for group in PbxGroup.query.filter_by(context=session['context']).all():
+                members = []
+                for extension in PbxGroupMember.query.filter_by(pbx_group_id=group.id).all():
+                    members.append(extension.extension)
+                items.append({'id': group.id, 'name': group.name, 'ring_strategy': group.ring_strategy,
+                              'no_answer_destination': group.no_answer_destination, 'members': ",".join(members),
+                              'timeout': group.timeout})
+
+            db.remove()
+
+            return {'identifier': 'id', 'label': 'name', 'items': items}
+
+        except Exception, e:
+            return {'identifier': 'id', 'label': 'name', 'items': [], 'is_error': True, 'message': str(e)}
+
+    @authorize(logged_in)
+    @jsonify
+    def group_by_id(self, id, **kw):
+        items=[]
+        members=[]
+        try:
+            group = PbxGroup.query.filter_by(context=session['context']).filter_by(id=id).first()
             for extension in PbxGroupMember.query.filter_by(pbx_group_id=group.id).all():
                 members.append(extension.extension)
             items.append({'id': group.id, 'name': group.name, 'ring_strategy': group.ring_strategy,
                           'no_answer_destination': group.no_answer_destination, 'members': ",".join(members),
                           'timeout': group.timeout})
-            members = []
+            db.remove()
 
-        db.remove()
+            return {'identifier': 'id', 'label': 'name', 'items': items}
 
-        out = dict({'identifier': 'id', 'label': 'name', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
-
-        return response(request.environ, self.start_response)
-
-    @authorize(logged_in)
-    def group_by_id(self, id, **kw):
-        items=[]; members=[]
-        group = PbxGroup.query.filter_by(context=session['context']).filter_by(id=id).first()
-        for extension in PbxGroupMember.query.filter_by(pbx_group_id=group.id).all():
-            members.append(extension.extension)
-        items.append({'id': group.id, 'name': group.name, 'ring_strategy': group.ring_strategy,
-                      'no_answer_destination': group.no_answer_destination, 'members': ",".join(members),
-                      'timeout': group.timeout})
-        db.remove()
-
-        out = dict({'identifier': 'id', 'label': 'name', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
-
-        return response(request.environ, self.start_response)
+        except Exception, e:
+            return {'identifier': 'id', 'label': 'name', 'items': [], 'is_error': True, 'message': str(e)}
 
     @authorize(logged_in)
     def group_add(self, **kw):
@@ -1262,48 +1327,49 @@ class PbxController(BaseController):
             if len(form_result.get('group_extensions').split(","))==1:
                 return "Error: You need to have at least two extensions to make a group."
 
-            sg = PbxGroup()
-            sg.name = form_result.get('group_name')
-            sg.context = session['context']
-            sg.ring_strategy = form_result.get('group_ring_strategy', 'sim')
-            sg.no_answer_destination = form_result.get('no_answer_destination', None)
-            sg.timeout = form_result.get('timeout', 13)
+            group = PbxGroup()
+            group.name = form_result.get('group_name')
+            group.context = session['context']
+            group.ring_strategy = form_result.get('group_ring_strategy', 'sim')
+            group.no_answer_destination = form_result.get('no_answer_destination', None)
+            group.timeout = form_result.get('timeout', 13)
 
-            db.add(sg)
-            db.commit(); db.flush()
+            db.add(group)
+            db.flush()
 
             if not form_result.get('group_extensions').split(","):
                 if not form_result.get('group_extensions').isdigit():
                     return "You need to have at least one extension to make a group."
                 else:
-                    db.add(PbxGroupMember(sg.id, form_result.get('group_extensions')))
-                    db.commit(); db.flush()
+                    db.add(PbxGroupMember(group.id, form_result.get('group_extensions')))
+                    db.flush()
             else:
                 for ext in form_result.get('group_extensions').split(","):
                     if not ext.isdigit():
                         continue
-                    db.add(PbxGroupMember(sg.id, ext))
-                    db.commit(); db.flush()
+                    db.add(PbxGroupMember(group.id, ext))
+                    db.flush()
+
+            route = PbxRoute()
+            route.context = session['context']
+            route.domain = session['context']
+            route.name = form_result.get('group_name')
+            route.continue_route = True
+            route.voicemail_enable = True
+            route.voicemail_ext = form_result.get('group_name')
+            route.pbx_route_type_id = 4
+            route.pbx_to_id = group.id
+
+            db.add(route)
+            db.flush()
+            db.commit()
+            db.remove()
+
+            return "Successfully added group "+str(form_result.get('group_name'))+"."
 
         except validators.Invalid, error:
             db.remove()
             return 'Validation Error: %s' % error
-
-        r = PbxRoute()
-        r.context = session['context']
-        r.domain = session['context']
-        r.name = form_result.get('group_name')
-        r.continue_route = True
-        r.voicemail_enable = True
-        r.voicemail_ext = form_result.get('group_name')
-        r.pbx_route_type_id = 4
-        r.pbx_to_id = sg.id
-
-        db.add(r)
-        db.commit(); db.flush()
-        db.remove()
-
-        return "Successfully added group "+str(form_result.get('group_name'))+"."
 
     @authorize(logged_in)
     def group_edit(self, **kw):
@@ -1315,55 +1381,58 @@ class PbxController(BaseController):
                 return "Error: You need to have at least two extensions to make a group."
 
             db.delete(PbxGroup.query.filter_by(id=form_result.get('group_id')).first())
+
             for member in PbxGroupMember.query.filter_by(pbx_group_id=form_result.get('group_id')).all():
                 db.delete(member)
+
             db.delete(PbxRoute.query.filter_by(pbx_route_type_id=4).filter_by(pbx_to_id=form_result.get('group_id')).first())
-            db.commit(); db.flush()
+            db.flush()
+            db.commit()
 
-            sg = PbxGroup()
-            sg.name = form_result.get('group_name')
-            sg.context = session['context']
-            sg.ring_strategy = form_result.get('group_ring_strategy', 'sim')
-            sg.no_answer_destination = form_result.get('no_answer_destination', None)
-            sg.timeout = form_result.get('timeout', 13)
+            group = PbxGroup()
+            group.name = form_result.get('group_name')
+            group.context = session['context']
+            group.ring_strategy = form_result.get('group_ring_strategy', 'sim')
+            group.no_answer_destination = form_result.get('no_answer_destination', None)
+            group.timeout = form_result.get('timeout', 13)
 
-            db.add(sg)
-            db.commit(); db.flush()
+            db.add(group)
+            db.flush()
+            db.commit()
 
             if not form_result.get('group_extensions').split(","):
                 if not form_result.get('group_extensions').isdigit():
                     return "You need to have at least one extension to make a group."
                 else:
-                    db.add(PbxGroupMember(sg.id, form_result.get('group_extensions')))
+                    db.add(PbxGroupMember(group.id, form_result.get('group_extensions')))
                     db.commit()
                     db.flush()
             else:
                 for ext in form_result.get('group_extensions').split(","):
                     if not ext.isdigit():
                         continue
-                    db.add(PbxGroupMember(sg.id, ext))
+                    db.add(PbxGroupMember(group.id, ext))
                     db.commit()
                     db.flush()
 
+            route = PbxRoute()
+            route.context = session['context']
+            route.domain = session['context']
+            route.name = form_result.get('group_name')
+            route.continue_route = True
+            route.voicemail_enable = True
+            route.voicemail_ext = form_result.get('group_name')
+            route.pbx_route_type_id = 4
+            route.pbx_to_id = group.id
+
+            db.add(route)
+            db.flush()
+            db.commit()
+            db.remove()
 
         except validators.Invalid, error:
             db.remove()
             return 'Validation Error: %s' % error
-
-        r = PbxRoute()
-        r.context = session['context']
-        r.domain = session['context']
-        r.name = form_result.get('group_name')
-        r.continue_route = True
-        r.voicemail_enable = True
-        r.voicemail_ext = form_result.get('group_name')
-        r.pbx_route_type_id = 4
-        r.pbx_to_id = sg.id
-
-        db.add(r)
-        db.commit(); db.flush()
-
-        db.remove()
 
         return "Successfully added group "+str(form_result.get('group_name'))+"."
 
@@ -1374,16 +1443,18 @@ class PbxController(BaseController):
 
         try:
             for i in w['modified']:
-                g = PbxGroup.query.filter_by(id=i['id']).first()
-                g.no_answer_destination = i['no_answer_destination']
-                g.ring_strategy = i['ring_strategy']
-                db.commit(); db.flush()
+                group = PbxGroup.query.filter_by(id=i['id']).first()
+                group.no_answer_destination = i['no_answer_destination']
+                group.ring_strategy = i['ring_strategy']
+                db.flush()
+                db.commit()
+
                 PbxGroupMember.query.filter(PbxGroupMember.pbx_group_id==i['id']).delete()
 
-                for gm in i['members'].split(","):
-                    if not gm.strip().isdigit():
+                for group_member in i['members'].split(","):
+                    if not group_member.strip().isdigit():
                         continue
-                    db.add(PbxGroupMember(i['id'], gm.strip()))
+                    db.add(PbxGroupMember(i['id'], group_member.strip()))
                     db.commit()
                     db.flush()
         except:
@@ -1404,25 +1475,27 @@ class PbxController(BaseController):
         return  "Successfully deleted group."
 
     @authorize(logged_in)
+    @jsonify
     def dids(self):
         items=[]
 
-        for did in PbxDid.query.filter_by(context=session['context']).all():
-            route = db.query(PbxRoute.id, PbxRouteType.name, PbxRoute.name)\
-            .join(PbxRouteType).filter(PbxRoute.context==session['context']).filter(PbxRoute.id==did.pbx_route_id).first()
-            if route:
-                items.append({'id': did.id, 'did': did.did, 'route_name': route[1]+': '+route[2], 'pbx_route_id': route.id})
-            else:
-                items.append({'id': did.id, 'did': did.did, 'route_name': "Broken Route!", 'pbx_route_id': 0})
+        try:
+            for did in PbxDid.query.filter_by(context=session['context']).all():
+                route = db.query(PbxRoute.id, PbxRouteType.name, PbxRoute.name)\
+                            .join(PbxRouteType).filter(PbxRoute.context==session['context'])\
+                            .filter(PbxRoute.id==did.pbx_route_id).first()
+                if route:
+                    items.append({'id': did.id, 'did': did.did, 'route_name': route[1]+': '+route[2], 'pbx_route_id': route.id})
+                else:
+                    items.append({'id': did.id, 'did': did.did, 'route_name': "Broken Route!", 'pbx_route_id': 0})
 
-        lbid = get_route_labels_ids()
-        db.remove()
+            lbid = get_route_labels_ids()
+            db.remove()
 
-        out = dict({'identifier': 'id', 'label': 'name', 'items': items,'did_labels': lbid[0], 'did_ids': lbid[1]})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
+            return {'identifier': 'id', 'label': 'name', 'items': items,'did_labels': lbid[0], 'did_ids': lbid[1]}
 
-        return response(request.environ, self.start_response)
+        except Exception, e:
+            return {'identifier': 'id', 'label': 'name', 'items': [], 'did_labels': None, 'did_ids': None, 'is_error': True, 'message': str(e)}
 
     @authorize(logged_in)
     def update_did_grid(self, **kw):
@@ -1431,10 +1504,11 @@ class PbxController(BaseController):
 
         try:
             for i in w['modified']:
-                sd = PbxDid.query.filter_by(id=i['id']).filter_by(context=session['context']).first()
-                sd.pbx_route_id = i['route_name']
+                did = PbxDid.query.filter_by(id=i['id']).filter_by(context=session['context']).first()
+                did.pbx_route_id = i['route_name']
+                db.flush()
                 db.commit()
-                db.commit(); db.flush()
+                db.commit()
         except:
             db.remove()
             return "Error updating DID."
@@ -1442,6 +1516,7 @@ class PbxController(BaseController):
         return "Successfully updated DID."
 
     @authorize(logged_in)
+    @jsonify
     def faxes(self):
         files = []
         dir = fs_vm_dir+session['context']+"/faxes"
@@ -1453,6 +1528,7 @@ class PbxController(BaseController):
                 path = dir+"/"+i
                 uuid = i.split("_")[0].strip()
                 name = i.split("_")[1].strip().split(".")[0]
+
                 if name.find("-") == -1:
                     page_num = "Single Page"
                 else:
@@ -1463,63 +1539,64 @@ class PbxController(BaseController):
                 tpath = "/vm/" +session['context']+"/faxes/"+i
                 received = str(modification_date(path)).strip("\"")
                 fsize = str(os.path.getsize(path))
-                row = PbxCdr.query.filter(PbxCdr.uuid==uuid).first()
-                if row:
-                    caller = row.caller_id_number[len(row.caller_id_number)-10:]
+                cdr = PbxCdr.query.filter(PbxCdr.uuid==uuid).first()
+                if cdr:
+                    caller = cdr.caller_id_number[len(cdr.caller_id_number)-10:]
                 else:
                     caller = "Unknown"
                 files.append({'uuid': uuid, 'name': name, 'caller_id': caller, 'path': tpath, 'received': received, 'size': fsize, 'page_num': page_num})
         except:
             os.makedirs(dir)
-        db.remove()
-        out = dict({'identifier': 'path', 'label': 'name', 'items': files})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
 
-        return response(request.environ, self.start_response)
+        db.remove()
+        return {'identifier': 'path', 'label': 'name', 'items': files}
 
     @authorize(logged_in)
     def fax_add(self, **kw):
         schema = FaxForm()
         try:
             form_result = schema.to_python(request.params)
-            sf = PbxFax()
-            sf.extension = form_result.get('fax_name')
-            sf.context = session['context']
+            fax = PbxFax()
+            fax.extension = form_result.get('fax_name')
+            fax.context = session['context']
 
-            db.add(sf)
-            db.commit(); db.flush()
+            db.add(fax)
+            db.flush()
+            db.commit()
 
-            r = PbxRoute()
-            r.context = session['context']
-            r.domain = session['context']
-            r.name = form_result.get('fax_name')
-            r.continue_route = False
-            r.voicemail_enable = False
-            r.voicemail_ext = form_result.get('fax_name')
-            r.pbx_route_type_id = 12
-            r.pbx_to_id = sf.id
+            router = PbxRoute()
+            router.context = session['context']
+            router.domain = session['context']
+            router.name = form_result.get('fax_name')
+            router.continue_route = False
+            router.voicemail_enable = False
+            router.voicemail_ext = form_result.get('fax_name')
+            router.pbx_route_type_id = 12
+            router.pbx_to_id = fax.id
 
-            db.add(r)
-            db.commit(); db.flush()
+            db.add(router)
+            db.flush()
+            db.commit()
 
-        except validators.Invalid, error:
+        except validators.Invalid, e:
             db.remove()
-            return 'Validation Error: Please correct form inputs and resubmit.'
+            return 'Validation Error: Please correct form inputs and resubmit: %s' %e
 
     @authorize(logged_in)
+    @jsonify
     def fax_ext(self):
         items=[]
-        for ext in PbxFax.query.filter_by(context=session['context']).all():
-            items.append({'id': ext.id, 'extension': ext.extension})
 
-        db.remove()
+        try:
+            for ext in PbxFax.query.filter_by(context=session['context']).all():
+                items.append({'id': ext.id, 'extension': ext.extension})
 
-        out = dict({'identifier': 'id', 'label': 'extension', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
+            db.remove()
 
-        return response(request.environ, self.start_response)
+            return {'identifier': 'id', 'label': 'extension', 'items': items}
+
+        except Exception, e:
+            return {'identifier': 'id', 'label': 'extension', 'items': [], 'is_error': True, 'messages': str(e)}
 
     @authorize(logged_in)
     def fax_send(self, **kw):
@@ -1592,55 +1669,58 @@ class PbxController(BaseController):
         return  "Successfully deleted fax extension."
 
     @authorize(logged_in)
+    @jsonify
     def tod_routes(self):
         items=[]
-        for tod in PbxTODRoute.query.filter_by(context=session['context']).all():
-            route_match = db.query(PbxRoute.id, PbxRouteType.name, PbxRoute.name)\
-            .join(PbxRouteType).filter(PbxRoute.context==session['context']).filter(PbxRoute.id==tod.match_route_id).first()
-            route_nomatch = db.query(PbxRoute.id, PbxRouteType.name, PbxRoute.name)\
-            .join(PbxRouteType).filter(PbxRoute.context==session['context']).filter(PbxRoute.id==tod.nomatch_route_id).first()
 
-            items.append({'id': tod.id, 'name': tod.name, 'day_start': tod.day_start, 'day_end': tod.day_end, 'time_start': tod.time_start[1:len(tod.time_start)-3], 'time_end': tod.time_end[1:len(tod.time_end)-3],
-                          'match_route_id': tod.match_route_id, 'nomatch_route_id': tod.nomatch_route_id, 'match_name': route_match[1]+': '+route_match[2],
-                          'match_id': route_match[0], 'nomatch_name': route_nomatch[1]+': '+route_nomatch[2], 'nomatch_id': route_nomatch[0]})
-        db.remove()
-        out = dict({'identifier': 'id', 'label': 'extension', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
+        try:
+            for tod in PbxTODRoute.query.filter_by(context=session['context']).all():
+                route_match = db.query(PbxRoute.id, PbxRouteType.name, PbxRoute.name)\
+                .join(PbxRouteType).filter(PbxRoute.context==session['context']).filter(PbxRoute.id==tod.match_route_id).first()
+                route_nomatch = db.query(PbxRoute.id, PbxRouteType.name, PbxRoute.name)\
+                .join(PbxRouteType).filter(PbxRoute.context==session['context']).filter(PbxRoute.id==tod.nomatch_route_id).first()
 
-        return response(request.environ, self.start_response)
+                items.append({'id': tod.id, 'name': tod.name, 'day_start': tod.day_start, 'day_end': tod.day_end, 'time_start': tod.time_start[1:len(tod.time_start)-3], 'time_end': tod.time_end[1:len(tod.time_end)-3],
+                              'match_route_id': tod.match_route_id, 'nomatch_route_id': tod.nomatch_route_id, 'match_name': route_match[1]+': '+route_match[2],
+                              'match_id': route_match[0], 'nomatch_name': route_nomatch[1]+': '+route_nomatch[2], 'nomatch_id': route_nomatch[0]})
+            db.remove()
+            return {'identifier': 'id', 'label': 'extension', 'items': items}
+        except Exception, e:
+            return {'identifier': 'id', 'label': 'extension', 'items': [], 'is_error': True, 'messages': str(e)}
 
     @authorize(logged_in)
     def tod_route_add(self, **kw):
         schema = TODForm()
         try:
             form_result = schema.to_python(request.params)
-            t = PbxTODRoute()
-            t.domain = session['context']
-            t.context = session['context']
-            t.name = form_result.get('name')
-            t.day_start = form_result.get('day_start')
-            t.day_end = form_result.get('day_end')
-            t.time_start = form_result.get('time_start')
-            t.time_end = form_result.get('time_end')
-            t.match_route_id = form_result.get('match_route_id')
-            t.nomatch_route_id = form_result.get('nomatch_route_id')
+            time_of_day_route = PbxTODRoute()
+            time_of_day_route.domain = session['context']
+            time_of_day_route.context = session['context']
+            time_of_day_route.name = form_result.get('name')
+            time_of_day_route.day_start = form_result.get('day_start')
+            time_of_day_route.day_end = form_result.get('day_end')
+            time_of_day_route.time_start = form_result.get('time_start')
+            time_of_day_route.time_end = form_result.get('time_end')
+            time_of_day_route.match_route_id = form_result.get('match_route_id')
+            time_of_day_route.nomatch_route_id = form_result.get('nomatch_route_id')
 
-            db.add(t)
-            db.commit(); db.flush()
+            db.add(time_of_day_route)
+            db.flush()
+            db.commit()
 
-            r = PbxRoute()
-            r.context = session['context']
-            r.domain = session['context']
-            r.name = form_result.get('name')
-            r.continue_route = True
-            r.voicemail_enable = True
-            r.voicemail_ext = form_result.get('name')
-            r.pbx_route_type_id = 6
-            r.pbx_to_id = t.id
+            route = PbxRoute()
+            route.context = session['context']
+            route.domain = session['context']
+            route.name = form_result.get('name')
+            route.continue_route = True
+            route.voicemail_enable = True
+            route.voicemail_ext = form_result.get('name')
+            route.pbx_route_type_id = 6
+            route.pbx_to_id = time_of_day_route.id
 
-            db.add(r)
-            db.commit(); db.flush()
+            db.add(route)
+            db.flush()
+            db.commit()
 
         except validators.Invalid, error:
             return 'Error: %s' % error
@@ -1649,18 +1729,19 @@ class PbxController(BaseController):
         return "Successfully added time of day route."
 
     @authorize(logged_in)
+    @jsonify
     def tod_by_id(self, id, **kw):
         items=[]
-        row = PbxTODRoute.query.filter_by(id=id).filter_by(context=session['context']).first()
-        items.append({'id': row.id, 'name': row.name, 'day_start': row.day_start,
-                      'day_end': row.day_end, 'time_start': row.time_start, 'time_end': row.time_end,
-                      'match_route_id': row.match_route_id, 'nomatch_route_id': row.nomatch_route_id})
+        try:
+            time_of_day_route = PbxTODRoute.query.filter_by(id=id).filter_by(context=session['context']).first()
+            items.append({'id': time_of_day_route.id, 'name': time_of_day_route.name, 'day_start': time_of_day_route.day_start,
+                          'day_end': time_of_day_route.day_end, 'time_start': time_of_day_route.time_start, 'time_end': time_of_day_route.time_end,
+                          'match_route_id': time_of_day_route.match_route_id, 'nomatch_route_id': time_of_day_route.nomatch_route_id})
 
-        out = dict({'identifier': 'id', 'label': 'name', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json'),]
+            return {'identifier': 'id', 'label': 'name', 'items': items}
 
-        return response(request.environ, self.start_response)
+        except Exception, e:
+            return {'identifier': 'id', 'label': 'extension', 'items': [], 'is_error': True, 'messages': str(e)}
 
     @authorize(logged_in)
     def edit_tod(self, **kw):
@@ -1702,6 +1783,7 @@ class PbxController(BaseController):
         return  "Successfully deleted Time of Day Route."
 
     @authorize(logged_in)
+    @jsonify
     def recordings(self):
         files = []
         dir = fs_vm_dir+session['context']+"/recordings/"
@@ -1710,14 +1792,13 @@ class PbxController(BaseController):
                 files.append(generateFileObject(i, "",  dir))
         except:
             os.makedirs(dir)
+            for i in os.listdir(dir):
+                files.append(generateFileObject(i, "",  dir))
 
-        out = dict({'identifier': 'name', 'label': 'name', 'items': files})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
-
-        return response(request.environ, self.start_response)
+        return {'identifier': 'name', 'label': 'name', 'items': files}
 
     @authorize(logged_in)
+    @jsonify
     def audio_recordings(self):
         items = []
         dir = fs_vm_dir+session['context']+"/recordings/"
@@ -1729,22 +1810,17 @@ class PbxController(BaseController):
             db.remove()
         except:
             pass
-        out = dict({'identifier': 'id', 'label': 'name', 'items': items})
 
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
-
-        return response(request.environ, self.start_response)
-
+        return {'identifier': 'id', 'label': 'name', 'items': items}
 
     @restrict("POST")
     @authorize(logged_in)
     def delete_recording(self, **kw):
 
-        t = PbxIVR.query.filter(PbxIVR.data==request.params['name']).filter(PbxIVR.context==session['context']).first()
+        ivr = PbxIVR.query.filter(PbxIVR.data==request.params['name']).filter(PbxIVR.context==session['context']).first()
 
         if t:
-            return "Error: Recording "+request.params['name']+" is in use by IVR named "+t.name+"!"
+            return "Error: Recording "+request.params['name']+" is in use by IVR named "+ivr.name+"!"
 
         try:
             dir = fs_vm_dir+session['context']+"/recordings/"+request.params['name']
@@ -1752,6 +1828,7 @@ class PbxController(BaseController):
         except:
             db.remove()
             return "Error deleting recording."
+
         db.remove()
         return "Deleted recording."
 
@@ -1791,51 +1868,56 @@ class PbxController(BaseController):
         return "Successfully renamed recording"
 
     @authorize(logged_in)
+    @jsonify
     def conferences(self):
         items=[]
-        for conf in PbxConferenceBridge.query.filter_by(context=session['context']).all():
-            items.append({'id': conf.id, 'extension': conf.extension, 'pin': conf.pin})
 
-        db.remove()
+        try:
+            for conf in PbxConferenceBridge.query.filter_by(context=session['context']).all():
+                items.append({'id': conf.id, 'extension': conf.extension, 'pin': conf.pin})
 
-        out = dict({'identifier': 'id', 'label': 'extension', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
+            db.remove()
 
-        return response(request.environ, self.start_response)
+            return {'identifier': 'id', 'label': 'extension', 'items': items}
+
+        except Exception, e:
+            return {'identifier': 'id', 'label': 'extension', 'items': [], 'is_error': True, 'messages': str(e)}
+
 
     @authorize(logged_in)
     def conf_add(self, **kw):
         schema = ConferenceForm()
         try:
             form_result = schema.to_python(request.params)
-            sc = PbxConferenceBridge()
-            sc.extension = form_result.get('extension')
-            sc.pin = form_result.get('pin')
-            sc.context = session['context']
-            sc.domain = session['context']
+            conference_bridge = PbxConferenceBridge()
+            conference_bridge.extension = form_result.get('extension')
+            conference_bridge.pin = form_result.get('pin')
+            conference_bridge.context = session['context']
+            conference_bridge.domain = session['context']
 
-            db.add(sc)
-            db.commit(); db.flush()
+            db.add(conference_bridge)
+            db.flush()
+            db.commit()
+
+            route = PbxRoute()
+            route.context = session['context']
+            route.domain = session['context']
+            route.name = form_result.get('extension')
+            route.continue_route = False
+            route.voicemail_enable = False
+            route.voicemail_ext = form_result.get('extension')
+            route.pbx_route_type_id = 7
+            route.pbx_to_id = conference_bridge.id
+
+            db.add(route)
+            db.flush()
+            db.commit()
+            db.remove()
 
         except validators.Invalid, error:
             db.remove()
             return 'Validation Error: %s' % error
 
-        r = PbxRoute()
-        r.context = session['context']
-        r.domain = session['context']
-        r.name = form_result.get('extension')
-        r.continue_route = False
-        r.voicemail_enable = False
-        r.voicemail_ext = form_result.get('extension')
-        r.pbx_route_type_id = 7
-        r.pbx_to_id = sc.id
-
-        db.add(r)
-        db.commit(); db.flush()
-
-        db.remove()
         return "Successfully added conference bridge."
 
     @restrict("GET")
@@ -1850,34 +1932,36 @@ class PbxController(BaseController):
         return  "Successfully deleted conference bridge."
 
     @authorize(logged_in)
+    @jsonify
     def cid_routes(self):
         items=[]
-        for cid in PbxCallerIDRoute.query.filter_by(context=session['context']).all():
-            route = db.query(PbxRoute.id, PbxRouteType.name, PbxRoute.name)\
-            .join(PbxRouteType).filter(PbxRoute.context==session['context']).filter(PbxRoute.id==cid.pbx_route_id).first()
-            items.append({'id': cid.id, 'cid_number': cid.cid_number, 'pbx_route_id': cid.pbx_route_id, 'pbx_route_name': route[1]+': '+route[2]})
+        try:
+            for cid in PbxCallerIDRoute.query.filter_by(context=session['context']).all():
+                route = db.query(PbxRoute.id, PbxRouteType.name, PbxRoute.name)\
+                            .join(PbxRouteType).filter(PbxRoute.context==session['context']).filter(PbxRoute.id==cid.pbx_route_id).first()
+                items.append({'id': cid.id, 'cid_number': cid.cid_number, 'pbx_route_id': cid.pbx_route_id, 'pbx_route_name': route[1]+': '+route[2]})
 
-        db.remove()
+            db.remove()
 
-        out = dict({'identifier': 'id', 'label': 'cid_number', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
+            return {'identifier': 'id', 'label': 'cid_number', 'items': items}
 
-        return response(request.environ, self.start_response)
+        except Exception, e:
+            return {'identifier': 'id', 'label': 'cid_number', 'items': [], 'is_error': True, 'messages': str(e)}
 
     @authorize(logged_in)
     def cid_add(self, **kw):
         schema = CIDForm()
         try:
             form_result = schema.to_python(request.params)
-            sc = PbxCallerIDRoute()
-            sc.cid_number = form_result.get('cid_number')
-            sc.pbx_route_id = form_result.get('pbx_route_id')
-            sc.context = session['context']
-            sc.domain = session['context']
+            cid = PbxCallerIDRoute()
+            cid.cid_number = form_result.get('cid_number')
+            cid.pbx_route_id = form_result.get('pbx_route_id')
+            cid.context = session['context']
+            cid.domain = session['context']
 
-            db.add(sc)
-            db.commit(); db.flush()
+            db.add(cid)
+            db.flush()
+            db.commit()
 
         except validators.Invalid, error:
             db.remove()
@@ -1898,32 +1982,33 @@ class PbxController(BaseController):
         return  "Successfully deleted CallerID route."
 
     @authorize(logged_in)
+    @jsonify
     def blacklisted(self):
         items=[]
-        for cid in PbxBlacklistedNumber.query.filter_by(context=session['context']).all():
-            items.append({'id': cid.id, 'cid_number': cid.cid_number})
-            members = []
+        try:
+            for cid in PbxBlacklistedNumber.query.filter_by(context=session['context']).all():
+                items.append({'id': cid.id, 'cid_number': cid.cid_number})
 
-        db.remove()
+            db.remove()
 
-        out = dict({'identifier': 'id', 'label': 'cid_number', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
+            return {'identifier': 'id', 'label': 'cid_number', 'items': items}
 
-        return response(request.environ, self.start_response)
+        except Exception, e:
+            return {'identifier': 'id', 'label': 'cid_number', 'items': [], 'is_error': True, 'messages': str(e)}
 
     @authorize(logged_in)
     def blacklist_add(self, **kw):
         schema = PbxBlacklistedForm()
         try:
             form_result = schema.to_python(request.params)
-            sc = PbxBlacklistedNumber()
-            sc.cid_number = form_result.get('cid_number')
-            sc.context = session['context']
-            sc.domain = session['context']
+            black_listed = PbxBlacklistedNumber()
+            black_listed.cid_number = form_result.get('cid_number')
+            black_listed.context = session['context']
+            black_listed.domain = session['context']
 
-            db.add(sc)
-            db.commit(); db.flush()
+            db.add(black_listed)
+            db.flush()
+            db.commit();
 
         except validators.Invalid, error:
             db.remove()
@@ -1944,33 +2029,35 @@ class PbxController(BaseController):
         return  "Successfully deleted blacklisted number."
 
     @authorize(logged_in)
+    @jsonify
     def tts(self):
         items=[]
-        for row in PbxTTS.query.filter_by(context=session['context']).all():
-            items.append({'id': row.id, 'name': row.name, 'text': row.text})
+        try:
+            for test_to_speech in PbxTTS.query.filter_by(context=session['context']).all():
+                items.append({'id': test_to_speech.id, 'name': test_to_speech.name, 'text': test_to_speech.text})
 
-        db.remove()
+            db.remove()
 
-        out = dict({'identifier': 'id', 'label': 'name', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
+            return {'identifier': 'id', 'label': 'name', 'items': items}
 
-        return response(request.environ, self.start_response)
+        except Exception, e:
+            return {'identifier': 'id', 'label': 'name', 'items': [], 'is_error': True, 'messages': str(e)}
 
     @authorize(logged_in)
     def tts_add(self, **kw):
         schema = TTSForm()
         try:
             form_result = schema.to_python(request.params)
-            t = PbxTTS()
-            t.name = form_result.get('name')
-            t.text = form_result.get('text')
-            t.context = session['context']
-            t.domain = session['context']
-            t.voice = u'Allison'
+            test_to_speech = PbxTTS()
+            test_to_speech.name = form_result.get('name')
+            test_to_speech.text = form_result.get('tts_text')
+            test_to_speech.context = session['context']
+            test_to_speech.domain = session['context']
+            test_to_speech.voice = u'Allison'
 
-            db.add(t)
-            db.commit(); db.flush()
+            db.add(test_to_speech)
+            db.flush()
+            db.commit()
 
         except validators.Invalid, error:
             db.remove()
@@ -1986,12 +2073,13 @@ class PbxController(BaseController):
             w = loads(urllib.unquote_plus(request.params.get("data")))
 
             for i in w['modified']:
-                t = PbxTTS.query.filter_by(id=i['id']).filter_by(context=session['context']).first()
-                t.name = i['name'].strip()
-                t.text = i['text'].strip()
+                test_to_speech = PbxTTS.query.filter_by(id=i['id']).filter_by(context=session['context']).first()
+                test_to_speech.name = i['name'].strip()
+                test_to_speech.text = i['text'].strip()
 
                 db.commit()
-                db.commit(); db.flush()
+                db.flush()
+                db.commit()
 
         except DataInputError, error:
             db.remove()
@@ -2005,283 +2093,319 @@ class PbxController(BaseController):
         return  delete_tts(request.params['name'])
 
     @authorize(logged_in)
+    @jsonify
     def ivr(self):
         items=[]
-        for ivr in PbxIVR.query.filter_by(context=session['context']).all():
-            items.append({'id': ivr.id, 'name': ivr.name})
+        try:
+            for ivr in PbxIVR.query.filter_by(context=session['context']).all():
+                items.append({'id': ivr.id, 'name': ivr.name})
 
-        db.remove()
+            db.remove()
 
-        out = dict({'identifier': 'id', 'label': 'name', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
+            return {'identifier': 'id', 'label': 'name', 'items': items}
 
-        return response(request.environ, self.start_response)
+        except Exception, e:
+            return {'identifier': 'id', 'label': 'name', 'items': [], 'is_error': True, 'messages': str(e)}
 
     @authorize(logged_in)
+    @jsonify
     def ivr_by_id(self, id, **kw):
         items=[]
-        for ivr in PbxIVR.query.filter_by(context=session['context']).filter_by(id=id).all():
-            options=[]
-            for opt in PbxIVROption.query.filter_by(pbx_ivr_id=ivr.id).all():
-                options.append({'option': opt.option, 'pbx_route_id': opt.pbx_route_id})
+        try:
+            for ivr in PbxIVR.query.filter_by(context=session['context']).filter_by(id=id).all():
+                options=[]
+                for opt in PbxIVROption.query.filter_by(pbx_ivr_id=ivr.id).all():
+                    options.append({'option': opt.option, 'pbx_route_id': opt.pbx_route_id})
 
-            items.append({'id': ivr.id, 'name': ivr.name,'timeout': ivr.timeout, 'direct_dial': ivr.direct_dial, 'data': ivr.data,\
-                          'audio_name': str(ivr.audio_type)+','+str(ivr.data), 'timeout_destination': ivr.timeout_destination, 'options': options})
+                items.append({'id': ivr.id, 'name': ivr.name,'timeout': ivr.timeout, 'direct_dial': ivr.direct_dial, 'data': ivr.data,\
+                              'audio_name': str(ivr.audio_type)+','+str(ivr.data), 'timeout_destination': ivr.timeout_destination, 'options': options})
 
-        db.remove()
+            db.remove()
 
-        out = dict({'identifier': 'id', 'label': 'name', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
+            return {'identifier': 'id', 'label': 'name', 'items': items}
 
-        return response(request.environ, self.start_response)
+        except Exception, e:
+            return {'identifier': 'id', 'label': 'name', 'items': [], 'is_error': True, 'messages': str(e)}
 
     @authorize(logged_in)
     def ivr_add(self, **kw):
         schema = IVRForm()
         try:
             form_result = schema.to_python(request.params)
-            s = PbxIVR()
-            s.name = form_result.get('ivr_name')
+            ivr = PbxIVR()
+            ivr.name = form_result.get('ivr_name')
 
-            s.audio_type = form_result.get('audio_name').split(",")[0].strip()
-            s.data = form_result.get('audio_name').split(",")[1].strip()
-            s.domain = session['context']
-            s.context = session['context']
-            s.timeout = form_result.get('timeout')
-            s.timeout_destination = form_result.get('timeout_destination')
+            ivr.audio_type = form_result.get('audio_name').split(",")[0].strip()
+            ivr.data = form_result.get('audio_name').split(",")[1].strip()
+            ivr.domain = session['context']
+            ivr.context = session['context']
+            ivr.customer_id = session['customer_id']
+            ivr.timeout = form_result.get('timeout')
+            ivr.timeout_destination = form_result.get('timeout_destination')
 
             if request.params.has_key('direct_dial'):
-                s.direct_dial = True
+                ivr.direct_dial = True
             else:
-                s.direct_dial = False
+                ivr.direct_dial = False
 
-            db.add(s)
-            db.commit(); db.flush()
+            db.add(ivr)
+            db.flush()
+            db.commit()
 
             if len(form_result.get('option_1'))>0:
-                i = PbxIVROption()
-                i.option=1
-                i.pbx_ivr_id = s.id
-                i.pbx_route_id = form_result.get('option_1')
+                ivr_option = PbxIVROption()
+                ivr_option.option = 1
+                ivr_option.pbx_ivr_id = ivr.id
+                ivr_option.pbx_route_id = form_result.get('option_1')
 
-                db.add(i)
-                db.commit(); db.flush()
+                db.add(ivr_option)
+                db.flush()
+                db.commit()
 
             if len(form_result.get('option_2'))>0:
-                i = PbxIVROption()
-                i.option=2
-                i.pbx_ivr_id = s.id
-                i.pbx_route_id = form_result.get('option_2')
+                ivr_option = PbxIVROption()
+                ivr_option.option = 2
+                ivr_option.pbx_ivr_id = ivr.id
+                ivr_option.pbx_route_id = form_result.get('option_2')
 
-                db.add(i)
-                db.commit(); db.flush()
+                db.add(ivr_option)
+                db.flush()
+                db.commit()
 
             if len(form_result.get('option_3'))>0:
-                i = PbxIVROption()
-                i.option=3
-                i.pbx_ivr_id = s.id
-                i.pbx_route_id = form_result.get('option_3')
+                ivr_option = PbxIVROption()
+                ivr_option.option = 3
+                ivr_option.pbx_ivr_id = ivr.id
+                ivr_option.pbx_route_id = form_result.get('option_3')
 
-                db.add(i)
-                db.commit(); db.flush()
+                db.add(ivr_option)
+                db.flush()
+                db.commit()
 
             if len(form_result.get('option_4'))>0:
-                i = PbxIVROption()
-                i.option=4
-                i.pbx_ivr_id = s.id
-                i.pbx_route_id = form_result.get('option_4')
+                ivr_option = PbxIVROption()
+                ivr_option.option= 4
+                ivr_option.pbx_ivr_id = ivr.id
+                ivr_option.pbx_route_id = form_result.get('option_4')
 
-                db.add(i)
-                db.commit(); db.flush()
+                db.add(ivr_option)
+                db.flush()
+                db.commit()
 
             if len(form_result.get('option_5'))>0:
-                i = PbxIVROption()
-                i.option=5
-                i.pbx_ivr_id = s.id
-                i.pbx_route_id = form_result.get('option_5')
+                ivr_option = PbxIVROption()
+                ivr_option.option = 5
+                ivr_option.pbx_ivr_id = ivr.id
+                ivr_option.pbx_route_id = form_result.get('option_5')
 
-                db.add(i)
-                db.commit(); db.flush()
+                db.add(ivr_option)
+                db.flush()
+                db.commit()
 
             if len(form_result.get('option_6'))>0:
-                i = PbxIVROption()
-                i.option=6
-                i.pbx_ivr_id = s.id
-                i.pbx_route_id = form_result.get('option_6')
+                ivr_option = PbxIVROption()
+                ivr_option.option=6
+                ivr_option.pbx_ivr_id = ivr.id
+                ivr_option.pbx_route_id = form_result.get('option_6')
 
-                db.add(i)
-                db.commit(); db.flush()
+                db.add(ivr_option)
+                db.flush()
+                db.commit()
 
             if len(form_result.get('option_7'))>0:
-                i = PbxIVROption()
-                i.option=7
-                i.pbx_ivr_id = s.id
-                i.pbx_route_id = form_result.get('option_7')
+                ivr_option = PbxIVROption()
+                ivr_option.option=7
+                ivr_option.pbx_ivr_id = ivr.id
+                ivr_option.pbx_route_id = form_result.get('option_7')
 
-                db.add(i)
-                db.commit(); db.flush()
+                db.add(ivr_option)
+                db.flush()
+                db.commit()
 
             if len(form_result.get('option_8'))>0:
-                i = PbxIVROption()
-                i.option=8
-                i.pbx_ivr_id = s.id
-                i.pbx_route_id = form_result.get('option_8')
+                ivr_option = PbxIVROption()
+                ivr_option.option=8
+                ivr_option.pbx_ivr_id = ivr.id
+                ivr_option.pbx_route_id = form_result.get('option_8')
 
-                db.add(i)
-                db.commit(); db.flush()
+                db.add(ivr_option)
+                db.flush()
+                db.commit()
 
             if len(form_result.get('option_9'))>0:
-                i = PbxIVROption()
-                i.option=9
-                i.pbx_ivr_id = s.id
-                i.pbx_route_id = form_result.get('option_9')
+                ivr_option = PbxIVROption()
+                ivr_option.option=9
+                ivr_option.pbx_ivr_id = ivr.id
+                ivr_option.pbx_route_id = form_result.get('option_9')
 
-                db.add(i)
-                db.commit(); db.flush()
+                db.add(ivr_option)
+                db.flush()
+                db.commit()
 
             if len(form_result.get('option_0'))>0:
-                i = PbxIVROption()
-                i.option=0
-                i.pbx_ivr_id = s.id
-                i.pbx_route_id = form_result.get('option_0')
+                ivr_option = PbxIVROption()
+                ivr_option.option=0
+                ivr_option.pbx_ivr_id = ivr.id
+                ivr_option.pbx_route_id = form_result.get('option_0')
 
-                db.add(i)
-                db.commit(); db.flush()
+                db.add(ivr_option)
+                db.flush()
+                db.commit()
+
+            route = PbxRoute()
+            route.context = session['context']
+            route.domain = session['context']
+            route.name = form_result.get('ivr_name')
+            route.continue_route = True
+            route.voicemail_enable = True
+            route.voicemail_ext = form_result.get('ivr_name')
+            route.pbx_route_type_id = 5
+            route.pbx_to_id = ivr.id
+
+            db.add(route)
+            db.flush()
+            db.commit()
+            db.remove()
+
+            return "Successfully added IVR."
 
         except validators.Invalid, error:
             db.remove()
             return 'Validation Error: Please correct form inputs and resubmit.'
 
-        r = PbxRoute()
-        r.context = session['context']
-        r.domain = session['context']
-        r.name = form_result.get('ivr_name')
-        r.continue_route = True
-        r.voicemail_enable = True
-        r.voicemail_ext = form_result.get('ivr_name')
-        r.pbx_route_type_id = 5
-        r.pbx_to_id = s.id
-
-        db.add(r)
-        db.commit(); db.flush()
-
-        db.remove()
-        return "Successfully added IVR."
 
     @authorize(logged_in)
     def ivr_edit(self, **kw):
         schema = IVREditForm()
         try:
             form_result = schema.to_python(request.params)
-            s = PbxIVR.query.filter_by(id=form_result.get('ivr_id')).filter_by(context=session['context']).first()
-            s.audio_type = form_result.get('audio_name').split(",")[0].strip()
-            s.data = form_result.get('audio_name').split(",")[1].strip()
-            s.domain = session['context']
-            s.context = session['context']
-            s.timeout = form_result.get('timeout')
-            s.timeout_destination=form_result.get('timeout_destination')
+            ivr = PbxIVR.query.filter_by(id=form_result.get('ivr_id')).filter_by(context=session['context']).first()
+
+            ivr.name = form_result.get('ivr_name')
+            ivr.audio_type = form_result.get('audio_name').split(",")[0].strip()
+            ivr.data = form_result.get('audio_name').split(",")[1].strip()
+            ivr.domain = session['context']
+            ivr.context = session['context']
+            ivr.timeout = form_result.get('timeout')
+            ivr.timeout_destination=form_result.get('timeout_destination')
 
             if request.params.has_key('direct_dial'):
-                s.direct_dial=True
+                ivr.direct_dial=True
             else:
-                s.direct_dial=False
+                ivr.direct_dial=False
 
-            db.commit(); db.flush()
+            db.flush()
+            db.commit();
 
-            PbxIVROption.query.filter_by(pbx_ivr_id=s.id).delete()
-            db.commit(); db.flush()
+            PbxIVROption.query.filter_by(pbx_ivr_id=ivr.id).delete()
+            db.flush()
+            db.commit()
 
             if len(form_result.get('option_1'))>0:
-                i = PbxIVROption()
-                i.option=1
-                i.pbx_ivr_id=s.id
-                i.pbx_route_id=form_result.get('option_1')
+                ivr_option = PbxIVROption()
+                ivr_option.option = 1
+                ivr_option.pbx_ivr_id = ivr.id
+                ivr_option.pbx_route_id = form_result.get('option_1')
 
-                db.add(i)
-                db.commit(); db.flush()
+                db.add(ivr_option)
+                db.flush()
+                db.commit()
 
             if len(form_result.get('option_2'))>0:
-                i = PbxIVROption()
-                i.option=2
-                i.pbx_ivr_id=s.id
-                i.pbx_route_id=form_result.get('option_2')
+                ivr_option = PbxIVROption()
+                ivr_option.option = 2
+                ivr_option.pbx_ivr_id = ivr.id
+                ivr_option.pbx_route_id = form_result.get('option_2')
 
-                db.add(i)
-                db.commit(); db.flush()
+                db.add(ivr_option)
+                db.flush()
+                db.commit()
 
             if len(form_result.get('option_3'))>0:
-                i = PbxIVROption()
-                i.option=3
-                i.pbx_ivr_id=s.id
-                i.pbx_route_id=form_result.get('option_3')
+                ivr_option = PbxIVROption()
+                ivr_option.option = 3
+                ivr_option.pbx_ivr_id = ivr.id
+                ivr_option.pbx_route_id = form_result.get('option_3')
 
-                db.add(i)
-                db.commit(); db.flush()
+                db.add(ivr_option)
+                db.flush()
+                db.commit()
 
             if len(form_result.get('option_4'))>0:
-                i = PbxIVROption()
-                i.option=4
-                i.pbx_ivr_id=s.id
-                i.pbx_route_id=form_result.get('option_4')
+                ivr_option = PbxIVROption()
+                ivr_option.option= 4
+                ivr_option.pbx_ivr_id = ivr.id
+                ivr_option.pbx_route_id = form_result.get('option_4')
 
-                db.add(i)
-                db.commit(); db.flush()
+                db.add(ivr_option)
+                db.flush()
+                db.commit()
 
             if len(form_result.get('option_5'))>0:
-                i = PbxIVROption()
-                i.option=5
-                i.pbx_ivr_id=s.id
-                i.pbx_route_id=form_result.get('option_5')
+                ivr_option = PbxIVROption()
+                ivr_option.option = 5
+                ivr_option.pbx_ivr_id = ivr.id
+                ivr_option.pbx_route_id = form_result.get('option_5')
 
-                db.add(i)
-                db.commit(); db.flush()
+                db.add(ivr_option)
+                db.flush()
+                db.commit()
 
             if len(form_result.get('option_6'))>0:
-                i = PbxIVROption()
-                i.option=6
-                i.pbx_ivr_id=s.id
-                i.pbx_route_id=form_result.get('option_6')
+                ivr_option = PbxIVROption()
+                ivr_option.option=6
+                ivr_option.pbx_ivr_id = ivr.id
+                ivr_option.pbx_route_id = form_result.get('option_6')
 
-                db.add(i)
-                db.commit(); db.flush()
+                db.add(ivr_option)
+                db.flush()
+                db.commit()
 
             if len(form_result.get('option_7'))>0:
-                i = PbxIVROption()
-                i.option=7
-                i.pbx_ivr_id=s.id
-                i.pbx_route_id=form_result.get('option_7')
+                ivr_option = PbxIVROption()
+                ivr_option.option=7
+                ivr_option.pbx_ivr_id = ivr.id
+                ivr_option.pbx_route_id = form_result.get('option_7')
 
-                db.add(i)
-                db.commit(); db.flush()
+                db.add(ivr_option)
+                db.flush()
+                db.commit()
 
             if len(form_result.get('option_8'))>0:
-                i = PbxIVROption()
-                i.option=8
-                i.pbx_ivr_id=s.id
-                i.pbx_route_id=form_result.get('option_8')
+                ivr_option = PbxIVROption()
+                ivr_option.option=8
+                ivr_option.pbx_ivr_id = ivr.id
+                ivr_option.pbx_route_id = form_result.get('option_8')
 
-                db.add(i)
-                db.commit(); db.flush()
+                db.add(ivr_option)
+                db.flush()
+                db.commit()
 
             if len(form_result.get('option_9'))>0:
-                i = PbxIVROption()
-                i.option=9
-                i.pbx_ivr_id=s.id
-                i.pbx_route_id=form_result.get('option_9')
+                ivr_option = PbxIVROption()
+                ivr_option.option=9
+                ivr_option.pbx_ivr_id = ivr.id
+                ivr_option.pbx_route_id = form_result.get('option_9')
 
-                db.add(i)
-                db.commit(); db.flush()
+                db.add(ivr_option)
+                db.flush()
+                db.commit()
 
             if len(form_result.get('option_0'))>0:
-                i = PbxIVROption()
-                i.option=0
-                i.pbx_ivr_id=s.id
-                i.pbx_route_id=form_result.get('option_0')
+                ivr_option = PbxIVROption()
+                ivr_option.option=0
+                ivr_option.pbx_ivr_id = ivr.id
+                ivr_option.pbx_route_id = form_result.get('option_0')
 
-                db.add(i)
-                db.commit(); db.flush()
+                db.add(ivr_option)
+                db.flush()
+                db.commit()
+
+            route = PbxRoute.query.filter_by(pbx_route_type_id=5, context=session['context'], pbx_to_id=ivr.id).first()
+            route.name = form_result.get('ivr_name')
+            route.voicemail_ext = form_result.get('ivr_name')
+            db.flush()
+            db.commit()
 
         except validators.Invalid, error:
             db.remove()
@@ -2295,18 +2419,23 @@ class PbxController(BaseController):
 
         w = loads(urllib.unquote_plus(request.params.get("data")))
 
-        for i in w['modified']:
-            ivr = PbxIVR.query.filter_by(context=session['context']).filter(PbxIVR.id==int(i['id'])).first()
-            ivr.name = i['name']
+        try:
+            for i in w['modified']:
+                ivr = PbxIVR.query.filter_by(context=session['context']).filter(PbxIVR.id==int(i['id'])).first()
+                ivr.name = i['name']
 
-            route = PbxRoute.query.filter_by(context=session['context']).\
-            filter(PbxRoute.pbx_route_type_id==5).filter(PbxRoute.pbx_to_id==int(i['id'])).first()
-            route.name = i['name']
+                route = PbxRoute.query.filter_by(context=session['context']).\
+                filter(PbxRoute.pbx_route_type_id==5).filter(PbxRoute.pbx_to_id==int(i['id'])).first()
+                route.name = i['name']
 
-            db.commit(); db.flush()
-            db.remove()
+                db.flush()
+                db.commit()
+                db.remove()
 
-        return "Successfully updated IVR."
+                return "Successfully updated IVR."
+
+        except Exception, e:
+            return 'Error: %e' %e
 
     @restrict("GET")
     @authorize(logged_in)
@@ -2314,6 +2443,7 @@ class PbxController(BaseController):
         return  delete_ivr(request.params['name'])
 
     @authorize(logged_in)
+    @jsonify
     def ivr_audio(self):
         items = []
         dir = fs_vm_dir+session['context']+"/recordings/"
@@ -2325,17 +2455,17 @@ class PbxController(BaseController):
         except:
             os.makedirs(dir)
 
-        for row in PbxTTS.query.filter_by(context=session['context']).all():
-            items.append({'id': '2,'+str(row.id), 'name': 'TTS: '+row.name, 'data': row.text, 'type': 2, 'real_id': row.id})
+        try:
+            for test_to_speech in PbxTTS.query.filter_by(context=session['context']).all():
+                items.append({'id': '2,'+str(test_to_speech.id), 'name': 'TTS: '+ test_to_speech.name, 'data': test_to_speech.text, 'type': 2, 'real_id': test_to_speech.id})
 
-        db.remove()
-        out = dict({'identifier': 'id', 'label': 'name', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
+            return {'identifier': 'id', 'label': 'name', 'items': items}
 
-        return response(request.environ, self.start_response)
+        except Exceptoin, e:
+            return {'identifier': 'id', 'label': 'name', 'items': [], 'is_error': True, 'messages': str(e)}
 
     @authorize(logged_in)
+    @jsonify
     def voicemail_from_file_system(self):
         files = []
 
@@ -2353,43 +2483,42 @@ class PbxController(BaseController):
                 fsize = str(os.path.getsize(path))
                 caller = row.caller_id_number[len(row.caller_id_number)-10:]
                 files.append({'name': caller, 'path': tpath, 'received': received, 'size': fsize})
+
+            return {'identifier': 'path', 'label': 'name', 'items': files}
         except:
             os.makedirs(dir)
-            out = dict({'identifier': 'path', 'label': 'name', 'items': files})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
-
-        return response(request.environ, self.start_response)
+            return {'identifier': 'path', 'label': 'name', 'items': []}
 
     @authorize(logged_in)
+    @jsonify
     def voicemail(self):
         items=[]
         path = []
         i = 4
-        if session['group_id'] > 1:
-            rows = VoiceMail.query.filter_by(domain=session['context']).filter(VoiceMail.username==session['ext']).all()
-        else:
-            rows = VoiceMail.query.filter_by(domain=session['context']).all()
+        try:
+            if session['group_id'] > 1:
+                voice_mails = VoiceMail.query.filter_by(domain=session['context']).filter(VoiceMail.username==session['ext']).all()
+            else:
+                voice_mails = VoiceMail.query.filter_by(domain=session['context']).all()
 
-        for row in rows:
-            received = time.strftime("%a, %d %b %Y %H:%M", time.localtime(row.created_epoch))
-            name = row.cid_number[len(row.cid_number)-10:]
-            fname = row.file_path.split("/")[len(row.file_path.split("/"))-1]
-            for x in range(1,5):
-                path.append(row.file_path.split("/")[len(row.file_path.split("/"))-i])
-                i=i-1
-            i = 4
+            for voice_mail in voice_mails:
+                received = time.strftime("%a, %d %b %Y %H:%M", time.localtime(voice_mail.created_epoch))
+                name = voice_mail.cid_number[len(voice_mail.cid_number)-10:]
+                fname = voice_mail.file_path.split("/")[len(voice_mail.file_path.split("/"))-1]
+                for x in range(1,5):
+                    path.append(voice_mail.file_path.split("/")[len(voice_mail.file_path.split("/"))-i])
+                    i=i-1
+                i = 4
 
-            fpath = "/"+"/".join(path)
-            path = []
-            items.append({'name': name, 'to': row.username, 'received': received, 'path': fpath, 'size': row.message_len})
+                fpath = "/"+"/".join(path)
+                path = []
+                items.append({'name': name, 'to': voice_mail.username, 'received': received, 'path': fpath, 'size': voice_mail.message_len})
 
-        db.remove()
-        out = dict({'identifier': 'path', 'label': 'name', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
+            db.remove()
+            return {'identifier': 'path', 'label': 'name', 'items': items}
 
-        return response(request.environ, self.start_response)
+        except Exception, e:
+            return {'identifier': 'path', 'label': 'name', 'items': [], 'is_error': True, 'messages': str(e)}
 
     @restrict("POST")
     @authorize(logged_in)
@@ -2409,128 +2538,130 @@ class PbxController(BaseController):
         return "Deleted voicemail."
 
     @authorize(logged_in)
+    @jsonify
     def cdr(self):
         items=[]
-        for row in PbxCdr.query.filter_by(context=session['context']).order_by(desc(PbxCdr.id)).all():
-            num = row.caller_id_number if len(row.caller_id_number)<=10 else row.caller_id_number[len(row.caller_id_number)-10:]
-            items.append({'id': row.id, 'caller_id_name': row.caller_id_name, 'caller_id_number': num,
-                          'destination_number': row.destination_number, 'start_stamp': fix_date(row.start_stamp), 'answer_stamp': fix_date(row.answer_stamp),
-                          'end_stamp': fix_date(row.end_stamp), 'duration': row.duration, 'billsec':row.billsec, 'hangup_cause': row.hangup_cause})
-        db.remove()
+        try:
+            for cdr in PbxCdr.query.filter_by(context=session['context']).order_by(desc(PbxCdr.id)).all():
+                num = cdr.caller_id_number if len(cdr.caller_id_number)<=10 else cdr.caller_id_number[len(cdr.caller_id_number)-10:]
+                items.append({'id': cdr.id, 'caller_id_name': cdr.caller_id_name, 'caller_id_number': num,
+                              'destination_number': cdr.destination_number, 'start_stamp': fix_date(cdr.start_stamp), 'answer_stamp': fix_date(cdr.answer_stamp),
+                              'end_stamp': fix_date(cdr.end_stamp), 'duration': cdr.duration, 'billsec': cdr.billsec, 'hangup_cause': cdr.hangup_cause})
+            db.remove()
 
-        out = dict({'identifier': 'id', 'label': 'caller_id_number', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
+            return {'identifier': 'id', 'label': 'caller_id_number', 'items': items}
 
-        return response(request.environ, self.start_response)
+        except Exception, e:
+            return {'identifier': 'path', 'label': 'caller_id_number', 'items': [], 'is_error': True, 'messages': str(e)}
 
     @authorize(logged_in)
+    @jsonify
     def cdr_summary(self):
         items=[]
         sdate = request.params.get("sdate", 'TIMESTAMP')
         edate = request.params.get("edate", 'CURRENT_TIMESTAMP')
 
-        sdate = "TIMESTAMP '"+sdate+"'" if sdate != 'TIMESTAMP' else "CURRENT_TIMESTAMP - INTERVAL '1 MONTH'"
-        edate = "TIMESTAMP '"+edate+"' + interval '1 day'" if edate != 'CURRENT_TIMESTAMP' else 'CURRENT_TIMESTAMP'
+        try:
 
-        for row in db.execute("SELECT * "
-                              "FROM cdr "
-                              "WHERE customer_id = :customer_id "
-                              "AND cdr.start_stamp > "+sdate+" AND cdr.end_stamp < "+edate+" "
-                              "ORDER BY start_stamp DESC", {'customer_id': str(session['customer_id'])}).fetchall():
+            sdate = "TIMESTAMP '"+sdate+"'" if sdate != 'TIMESTAMP' else "CURRENT_TIMESTAMP - INTERVAL '1 MONTH'"
+            edate = "TIMESTAMP '"+edate+"' + interval '1 day'" if edate != 'CURRENT_TIMESTAMP' else 'CURRENT_TIMESTAMP'
 
-            num = row.caller_id_number if len(row.caller_id_number)<=10 else row.caller_id_number[len(row.caller_id_number)-10:]
-            items.append({'id': row.id, 'caller_id_name': row.caller_id_name, 'caller_id_number': num,
-                          'destination_number': row.destination_number, 'start_stamp': fix_date(row.start_stamp), 'answer_stamp': fix_date(row.answer_stamp),
-                          'end_stamp': fix_date(row.end_stamp), 'duration': row.duration, 'billsec':row.billsec, 'hangup_cause': row.hangup_cause})
+            for row in db.execute("SELECT * "
+                                  "FROM cdr "
+                                  "WHERE customer_id = :customer_id "
+                                  "AND cdr.start_stamp > "+sdate+" AND cdr.end_stamp < "+edate+" "
+                                  "ORDER BY start_stamp DESC", {'customer_id': str(session['customer_id'])}).fetchall():
 
-        db.remove()
+                num = row.caller_id_number if len(row.caller_id_number)<=10 else row.caller_id_number[len(row.caller_id_number)-10:]
+                items.append({'id': row.id, 'caller_id_name': row.caller_id_name, 'caller_id_number': num,
+                              'destination_number': row.destination_number, 'start_stamp': fix_date(row.start_stamp), 'answer_stamp': fix_date(row.answer_stamp),
+                              'end_stamp': fix_date(row.end_stamp), 'duration': row.duration, 'billsec':row.billsec, 'hangup_cause': row.hangup_cause})
 
-        out = dict({'identifier': 'id', 'label': 'caller_id_number', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
+            db.remove()
+            return {'identifier': 'id', 'label': 'caller_id_number', 'items': items}
 
-        return response(request.environ, self.start_response)
+        except Exception,e:
+            return {'identifier': 'id', 'label': 'caller_id_number', 'items': [], 'is_error': True, 'messages': str(e)}
 
     @authorize(logged_in)
+    @jsonify
     def cdr_ext_summary(self):
         items=[]
-        sdate = request.params.get("sdate", 'TIMESTAMP')
-        edate = request.params.get("edate", 'CURRENT_TIMESTAMP')
+        try:
+            sdate = request.params.get("sdate", 'TIMESTAMP')
+            edate = request.params.get("edate", 'CURRENT_TIMESTAMP')
 
-        sdate = "TIMESTAMP '"+sdate+"'" if sdate != 'TIMESTAMP' else "TIMESTAMP '"+datetime.today().strftime("%m/%d/%Y 12:00:00 AM")+"'"
-        edate = "TIMESTAMP '"+edate+"' + interval '1 day'" if edate != 'CURRENT_TIMESTAMP' else 'CURRENT_TIMESTAMP'
+            sdate = "TIMESTAMP '"+sdate+"'" if sdate != 'TIMESTAMP' else "TIMESTAMP '"+datetime.today().strftime("%m/%d/%Y 12:00:00 AM")+"'"
+            edate = "TIMESTAMP '"+edate+"' + interval '1 day'" if edate != 'CURRENT_TIMESTAMP' else 'CURRENT_TIMESTAMP'
 
-        for row in db.execute("SELECT DISTINCT users.id, users.first_name ||' '|| users.last_name AS agent, users.portal_extension as extension, "
-                              "(SELECT COUNT(uuid) FROM cdr WHERE (cdr.caller_id_number = users.portal_extension or cdr.destination_number = users.portal_extension) "
-                              "AND cdr.start_stamp > "+sdate+" AND cdr.end_stamp < "+edate+" AND call_direction = 'inbound' AND cdr.context = customers.context) AS call_count_in, "
-                              "(SELECT COUNT(uuid) FROM cdr WHERE (cdr.caller_id_number = users.portal_extension or cdr.destination_number = users.portal_extension) "
-                              "AND cdr.start_stamp > "+sdate+" AND cdr.end_stamp < "+edate+" AND call_direction = 'outbound' AND cdr.context =  customers.context) AS call_count_out, "
-                              "(SELECT coalesce(sum(billsec),0) FROM cdr WHERE  (cdr.caller_id_number = users.portal_extension or cdr.destination_number = users.portal_extension) "
-                              "AND cdr.start_stamp > "+sdate+" AND cdr.end_stamp < "+edate+" AND call_direction = 'inbound' AND cdr.context =  customers.context) AS time_on_call_in, "
-                              "(SELECT coalesce(sum(billsec),0) FROM cdr WHERE  (cdr.caller_id_number = users.portal_extension or cdr.destination_number = users.portal_extension) "
-                              "AND cdr.start_stamp > "+sdate+" AND cdr.end_stamp < "+edate+" AND call_direction = 'outbound' AND cdr.context =  customers.context) AS time_on_call_out "
-                              "FROM users "
-                              "INNER JOIN customers ON customers.id = users.customer_id "
-                              "WHERE customers.id = :customer_id "
-                              "ORDER BY extension", {'customer_id': session['customer_id']}).fetchall():
+            for row in db.execute("SELECT DISTINCT users.id, users.first_name ||' '|| users.last_name AS agent, users.portal_extension as extension, "
+                                  "(SELECT COUNT(uuid) FROM cdr WHERE (cdr.caller_id_number = users.portal_extension or cdr.destination_number = users.portal_extension) "
+                                  "AND cdr.start_stamp > "+sdate+" AND cdr.end_stamp < "+edate+" AND call_direction = 'inbound' AND cdr.context = customers.context) AS call_count_in, "
+                                  "(SELECT COUNT(uuid) FROM cdr WHERE (cdr.caller_id_number = users.portal_extension or cdr.destination_number = users.portal_extension) "
+                                  "AND cdr.start_stamp > "+sdate+" AND cdr.end_stamp < "+edate+" AND call_direction = 'outbound' AND cdr.context =  customers.context) AS call_count_out, "
+                                  "(SELECT coalesce(sum(billsec),0) FROM cdr WHERE  (cdr.caller_id_number = users.portal_extension or cdr.destination_number = users.portal_extension) "
+                                  "AND cdr.start_stamp > "+sdate+" AND cdr.end_stamp < "+edate+" AND call_direction = 'inbound' AND cdr.context =  customers.context) AS time_on_call_in, "
+                                  "(SELECT coalesce(sum(billsec),0) FROM cdr WHERE  (cdr.caller_id_number = users.portal_extension or cdr.destination_number = users.portal_extension) "
+                                  "AND cdr.start_stamp > "+sdate+" AND cdr.end_stamp < "+edate+" AND call_direction = 'outbound' AND cdr.context =  customers.context) AS time_on_call_out "
+                                  "FROM users "
+                                  "INNER JOIN customers ON customers.id = users.customer_id "
+                                  "WHERE customers.id = :customer_id "
+                                  "ORDER BY extension", {'customer_id': session['customer_id']}).fetchall():
 
-            m, s = divmod(row.time_on_call_in, 60)
-            h, m = divmod(m, 60)
-            toci = "%dh:%02dm:%02ds" % (h, m, s)
+                m, s = divmod(row.time_on_call_in, 60)
+                h, m = divmod(m, 60)
+                toci = "%dh:%02dm:%02ds" % (h, m, s)
 
-            m, s = divmod(row.time_on_call_out, 60)
-            h, m = divmod(m, 60)
-            toco = "%dh:%02dm:%02ds" % (h, m, s)
+                m, s = divmod(row.time_on_call_out, 60)
+                h, m = divmod(m, 60)
+                toco = "%dh:%02dm:%02ds" % (h, m, s)
 
-            items.append({'id': row.id, 'agent': row.agent, 'extension': row.extension, 'call_count_in': row.call_count_in,
-                          'qstring': '?ext='+row.extension+'&sdate='+request.params.get("sdate", 'TIMESTAMP')+'&edate='+request.params.get("edate", 'CURRENT_TIMESTAMP'),
-                          'call_count_out': row.call_count_out, 'time_on_call_in': toci, 'time_on_call_out': toco,
-                          'from': request.params.get("sdate", 'TIMESTAMP') if request.params.get("sdate", 'TIMESTAMP') != 'TIMESTAMP' else datetime.today().strftime("%m/%d/%Y"),
-                          'to': request.params.get("edate", 'CURRENT_TIMESTAMP') if request.params.get("edate", 'CURRENT_TIMESTAMP') != 'CURRENT_TIMESTAMP' else datetime.today().strftime("%m/%d/%Y")})
+                items.append({'id': row.id, 'agent': row.agent, 'extension': row.extension, 'call_count_in': row.call_count_in,
+                              'qstring': '?ext='+row.extension+'&sdate='+request.params.get("sdate", 'TIMESTAMP')+'&edate='+request.params.get("edate", 'CURRENT_TIMESTAMP'),
+                              'call_count_out': row.call_count_out, 'time_on_call_in': toci, 'time_on_call_out': toco,
+                              'from': request.params.get("sdate", 'TIMESTAMP') if request.params.get("sdate", 'TIMESTAMP') != 'TIMESTAMP' else datetime.today().strftime("%m/%d/%Y"),
+                              'to': request.params.get("edate", 'CURRENT_TIMESTAMP') if request.params.get("edate", 'CURRENT_TIMESTAMP') != 'CURRENT_TIMESTAMP' else datetime.today().strftime("%m/%d/%Y")})
 
-        db.remove()
+            db.remove()
+            return {'identifier': 'id', 'label': 'agent', 'items': items}
 
-        out = dict({'identifier': 'id', 'label': 'agent', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
+        except Exception, e:
+            return {'identifier': 'id', 'label': 'agent', 'items': [], 'is_error': True, 'messages': str(e)}
 
-        return response(request.environ, self.start_response)
-
+    @jsonify
     def cdr_ext(self):
         items=[]
 
         sdate = request.params.get("sdate", 'TIMESTAMP')
         edate = request.params.get("edate", 'CURRENT_TIMESTAMP')
 
-        ext = request.params.get("ext")
+        try:
 
-        sdate = "TIMESTAMP '"+sdate+"'" if sdate != 'TIMESTAMP' else "TIMESTAMP '"+datetime.today().strftime("%m/%d/%Y 12:00:00 AM")+"'"
-        edate = "TIMESTAMP '"+edate+"' + interval '1 day'" if edate != 'CURRENT_TIMESTAMP' else 'CURRENT_TIMESTAMP'
+            ext = request.params.get("ext")
 
-        for row in db.execute("SELECT  cdr.id AS id, caller_id_name, caller_id_number, destination_number, start_stamp, answer_stamp, "
-                              "end_stamp, duration, billsec, hangup_cause "
-                              "FROM cdr "
-                              "INNER JOIN customers ON cdr.context = customers.context "
-                              "WHERE customers.id = :customer_id "
-                              "AND cdr.start_stamp > "+sdate+" AND cdr.end_stamp < "+edate+" "
-                              "AND cdr.call_direction IS NOT NULL "
-                              "AND (cdr.caller_id_number = :extension or cdr.destination_number = :extension) "
-                              "ORDER BY id", {'customer_id': session['customer_id'], 'extension': ext}).fetchall():
+            sdate = "TIMESTAMP '"+sdate+"'" if sdate != 'TIMESTAMP' else "TIMESTAMP '"+datetime.today().strftime("%m/%d/%Y 12:00:00 AM")+"'"
+            edate = "TIMESTAMP '"+edate+"' + interval '1 day'" if edate != 'CURRENT_TIMESTAMP' else 'CURRENT_TIMESTAMP'
 
-            num = row.caller_id_number if len(row.caller_id_number)<=10 else row.caller_id_number[len(row.caller_id_number)-10:]
+            for row in db.execute("SELECT  cdr.id AS id, caller_id_name, caller_id_number, destination_number, start_stamp, answer_stamp, "
+                                  "end_stamp, duration, billsec, hangup_cause "
+                                  "FROM cdr "
+                                  "INNER JOIN customers ON cdr.context = customers.context "
+                                  "WHERE customers.id = :customer_id "
+                                  "AND cdr.start_stamp > "+sdate+" AND cdr.end_stamp < "+edate+" "
+                                  "AND cdr.call_direction IS NOT NULL "
+                                  "AND (cdr.caller_id_number = :extension or cdr.destination_number = :extension) "
+                                  "ORDER BY id", {'customer_id': session['customer_id'], 'extension': ext}).fetchall():
 
-            items.append({'id': row.id, 'caller_id_name': row.caller_id_name, 'caller_id_number': num,
-                          'destination_number': row.destination_number, 'start_stamp': fix_date(row.start_stamp), 'answer_stamp': fix_date(row.answer_stamp),
-                          'end_stamp': fix_date(row.end_stamp), 'duration': row.duration, 'billsec':row.billsec, 'hangup_cause': row.hangup_cause})
+                num = row.caller_id_number if len(row.caller_id_number)<=10 else row.caller_id_number[len(row.caller_id_number)-10:]
 
-        db.remove()
+                items.append({'id': row.id, 'caller_id_name': row.caller_id_name, 'caller_id_number': num,
+                              'destination_number': row.destination_number, 'start_stamp': fix_date(row.start_stamp), 'answer_stamp': fix_date(row.answer_stamp),
+                              'end_stamp': fix_date(row.end_stamp), 'duration': row.duration, 'billsec':row.billsec, 'hangup_cause': row.hangup_cause})
 
-        out = dict({'identifier': 'id', 'label': 'caller_id_number', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
-
-        return response(request.environ, self.start_response)
+            db.remove()
+            return {'identifier': 'id', 'label': 'caller_id_number', 'items': items}
+        except  e:
+            return {'identifier': 'id', 'label': 'caller_id_number', 'items': [], 'is_error': True, 'messages': str(e)}
 
     @authorize(logged_in)
     def cdr_ext_download(self):

@@ -235,7 +235,7 @@ class PbxDid(Base):
     pbx_route_id = Column(Integer, default=0)
     created = Column(DateTime, default=datetime.now())
 
-    def __init__(self, did, customer_id, context, domain, t38, e911, cnam, active=True, pbx_route_id=0):
+    def __init__(self, did, customer_id, context, domain, t38=False, e911=False, cnam=False, active=True, pbx_route_id=0):
         self.did = did
         self.customer_id = customer_id
         self.context = context
@@ -543,8 +543,8 @@ class PbxEndpoint(Base):
     id = Column(Integer, autoincrement=True, primary_key=True)
     auth_id = Column(Unicode(64), nullable=False)
     password = Column(Unicode(64), nullable=False, default=u"O9876543$")
-    outbound_caller_id_name = Column(Unicode(64), nullable=False, default="Unknown")
-    outbound_caller_id_number = Column(Unicode(64), nullable=False, default="0000000000")
+    outbound_caller_id_name = Column(Unicode(64), nullable=False, default=u"Unknown")
+    outbound_caller_id_number = Column(Unicode(64), nullable=False, default=u"0000000000")
     internal_caller_id_name = Column(Unicode(64), nullable=False, default=u"Unknown")
     internal_caller_id_number = Column(Unicode(64), nullable=False, default=auth_id)
     user_context = Column(Unicode(64), nullable=False, default=u"sip.mydomain.net")

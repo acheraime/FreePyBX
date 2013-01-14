@@ -3,10 +3,14 @@ import datetime, time, md5, os, sys
 from pytz import timezone
 
 import shutil
-import os, sys
+import os
+import sys
+import logging
+
+log = logging.getLogger(__name__)
 
 
-class VWCI:
+class FreePyBX(object):
 
     def __init__(self, session):
         self.session = session        
@@ -17,7 +21,6 @@ class VWCI:
         self.ext = None
         self.dir = None
 
-    
     def on_dtmf(self, session, typ, obj):
 
         if (typ == "dtmf"):
@@ -43,7 +46,6 @@ class VWCI:
             self.uc = self.session.getVariable("domain_name")
             self.dir = "/usr/local/freeswitch/htdocs/vm/"+self.uc+"/recordings/"
 
-
             if not os.path.exists(self.dir):
                 os.makedirs(self.dir)
 
@@ -67,8 +69,8 @@ class VWCI:
 
             self.session.recordFile(self.rec, 240, 500, 3)
             self.session.hangup("NORMAL_CLEARING")
-        except:
-            raise Exception("Broke in main...")
+        except Exception, e:
+            log.debug("Exception: In record.main: {0}".format(str(e)))
         finally:
             del self.session
                                            
@@ -76,10 +78,10 @@ def handler(session, args):
     try:
         session.answer()    
         session.set_tts_parms('cepstral', 'Allison')    
-        vwci = VWCI(session)
-        vwci.main()
-    except:
-        raise Exception("Broke in handler...")
+        fpbx = FreePyBX(session)
+        fpbx.main()
+    except Exception, e:
+        log.debug("Exception: In record.main: {0}".format(str(e)))
     finally:
         del session
     

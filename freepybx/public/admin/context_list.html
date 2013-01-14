@@ -188,7 +188,7 @@
     }
 
     function delete_context() {
-        var del_user = userGrid.selection.getSelected()[0];
+        var del_user = contextGrid.selection.getSelected()[0];
         dojo.xhrGet({
             url: "/admin/del_context?id="+del_context.id,
             handleAs: "text",

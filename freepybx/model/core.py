@@ -206,6 +206,7 @@ class Customer(Base):
     has_call_center = Column(Boolean, default=False)
     notes = Column(UnicodeText)
     default_gateway = Column(Unicode(64))
+    max_extensions = Column(Integer, default=4)
     hard_channel_limit = Column(Integer, default=5)
     inbound_channel_limit = Column(Integer, default=5)
     outbound_channel_limit = Column(Integer, default=5)
@@ -222,11 +223,11 @@ class Customer(Base):
 
     def __repr__(self):
         return "<Customer({0},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10},{11},{12},{13},{14},{15},{16},{17},{18},{19},{20},{21}," \
-               "{22},{23},{24},{25},{26},{27},{28},{29},{30}>".format(
+               "{22},{23},{24},{25},{26},{27},{28},{29},{30},{31}>".format(
             self.id,self.name,self.customer_type_id,self.pbx_profile_id,self.start_date,self.end_date,self.last_login,
             self.email,self.address,self.address_2,self.city,self.state,self.zip,self.url,self.tel,self.active,self.lat_lon,
             self.context,self.contact_phone,self.contact_mobile,self.contact_name,self.contact_title,self.contact_email,
-            self.has_crm,self.has_call_center,self.notes,self.default_gateway,self.hard_channel_limit,self.inbound_channel_limit,
+            self.has_crm,self.has_call_center,self.notes,self.default_gateway,self.max_extensions,self.hard_channel_limit,self.inbound_channel_limit,
             self.outbound_channel_limit,self.channel_audio)
 
     def __str__(self):

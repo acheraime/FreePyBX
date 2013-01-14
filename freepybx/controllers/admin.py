@@ -165,7 +165,7 @@ class AdminController(BaseController):
         for row in Customer.query.all():
             items.append({'id': row.id, 'name': row.name, 'active': row.active, 'tel': row.tel})
 
-        out = dict({'identifier': 'name', 'label': 'name', 'items': items})
+        out = dict({'identifier': 'id', 'label': 'name', 'items': items})
         response = make_response(out)
         response.headers = [("Content-type", 'application/json'),]
 
@@ -201,7 +201,7 @@ class AdminController(BaseController):
                           'contact_name': customer.contact_name, 'contact_phone': customer.contact_phone, 'contact_mobile': customer.contact_mobile,
                           'contact_title': customer.contact_title, 'contact_email': customer.contact_email, 'notes': customer.notes,
                           'pbx_profile_id': customer.pbx_profile_id, 'inbound_channel_limit': customer.inbound_channel_limit,
-                          'outbound_channel_limit': customer.outbound_channel_limit,
+                          'outbound_channel_limit': customer.outbound_channel_limit, 'max_extensions': customer.max_extensions,
                           'hard_channel_limit': customer.hard_channel_limit, 'channel_audio': customer.channel_audio})
 
             return {'identifier': 'id', 'label': 'name', 'items': items}
@@ -216,8 +216,8 @@ class AdminController(BaseController):
             w = loads(urllib.unquote_plus(request.params.get("data")))
 
             for i in w['modified']:
-                co = Customer.query.filter_by(id=i['id']).first()
-                co.active = i['active']
+                customer = Customer.query.filter_by(id=i['id']).first()
+                customer.active = i['active']
 
                 db.commit()
                 db.flush()
@@ -271,7 +271,7 @@ class AdminController(BaseController):
             db.commit()
 
             context = PbxContext(customer.id, form_result.get('domain'), form_result.get('context'), form_result.get('default_gateway'),
-                customer.profile, customer.name, form_result.get('did', customer.name, customer.tel))
+                customer.profile, customer.name, customer.tel)
 
             db.add(context)
             customer.pbx_contexts.append(context)
@@ -327,6 +327,7 @@ class AdminController(BaseController):
             customer.has_call_center = True if form_result.get('has_call_center')=="true" else False
             customer.default_gateway = form_result.get('default_gateway')
             customer.pbx_profile_id = form_result.get('pbx_profile_id')
+            customer.max_extensions = form_result.get('max_extensions')
             customer.hard_channel_limit = form_result.get('hard_channel_limit')
             customer.inbound_channel_limit = form_result.get('inbound_channel_limit')
             customer.outbound_channel_limit = form_result.get('outbound_channel_limit')
@@ -810,14 +811,14 @@ class AdminController(BaseController):
         schema = DIDForm()
         try:
             form_result = schema.to_python(request.params)
-            co = Customer.query.filter_by(name=form_result.get('customer_name', None)).first()
-            if co:
-                db.add(PbxDid(form_result.get('did_name', None), customer.id,
+            customer = Customer.query.filter_by(name=form_result.get('customer_name', None)).first()
+            if customer:
+                db.add(PbxDid(form_result.get('did', None), customer.id,
                     customer.context, customer.context, form_result.get('t38', False), form_result.get('e911', False),
-                    form_result.get('cnam', False),form_result.get('active', False)))
+                    form_result.get('cnam', False), form_result.get('active', True)))
 
-                db.commit()
                 db.flush()
+                db.commit()
             else:
                 return "Error: Failed to insert DID."
 
@@ -827,6 +828,19 @@ class AdminController(BaseController):
 
         db.remove()
         return "Successfully added DID."
+
+    @authorize(super_user)
+    def del_did(self, **kw):
+
+        did = PbxDid.query.filter_by(did=request.params.get("did"), customer_id=request.params.get("customer_id")).first()
+
+        try:
+            if did:
+                delete_did(did.context, did.id)
+        except Exception, e:
+            return 'Error: %s' % e
+
+        return "Successfully deleted DID."
 
     @authorize(super_user)
     def update_did_grid(self, **kw):
@@ -906,7 +920,8 @@ class AdminController(BaseController):
         for row in PbxContext.query.all():
             customer = Customer.query.filter(Customer.id==row.customer_id).first()
             items.append({'id': row.id, 'context': row.context, 'profile': row.profile, 'caller_id_name': row.caller_id_name,
-                          'caller_id_number': row.caller_id_number, 'customer_name': customer.name, 'gateway': row.gateway})
+                          'caller_id_number': row.caller_id_number, 'customer_name': customer.name,
+                          'gateway': row.gateway, 'customer_id': customer.id})
 
         out = dict({'identifier': 'id', 'label': 'name', 'items': items})
         response = make_response(out)

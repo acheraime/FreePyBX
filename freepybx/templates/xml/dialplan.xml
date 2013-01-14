@@ -16,7 +16,7 @@
 
         <py:for each="did in c.dids">                 
             <extension name="${did.did}">
-              <condition field="destination_number" expression="^(\+1)?(${did.did})$">
+              <condition field="destination_number" expression="^(\+1|1)?(${did.did})$">
                 <action application="export" data="context=${did.context}"/>
                 <action application="export" data="domain=${did.domain}"/>
                 <action application="export" data="domain_name=${did.domain}"/>

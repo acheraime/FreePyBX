@@ -51,13 +51,13 @@
     function setContextForm(obj) {
         console.log(dojo.toJson(obj, true));
         dojo.byId("context_id").value = obj.id;
-        dijit.byId("customer_name").set("value", obj.customer_name);
+        dijit.byId("context_customer_id").set("value", obj.id);
         dijit.byId("domain").set("value", obj.context);
         dijit.byId("gateway").set("value", obj.gateway);
         dijit.byId("profile").set("value", obj.profile);
         dijit.byId("context").set("value", obj.context);
         dijit.byId("caller_id_name").set("value", obj.caller_id_name);
-        dijit.byId("caller_id_number").set("value", obj.caller_id_number);
+        dijit.byId("context_edit_caller_id_number").set("value", obj.caller_id_number);
     }
 
     function getContextByID() {
@@ -102,7 +102,6 @@
         getContextByID();
     });
 
-
 </script>
 <div dojoType="voiceware.PbxForm"
      data-dojo-props="title:'Edit Context',legend:'Context Settings',delStyle:'display:none', noticeClass: 'noNotice',
@@ -111,9 +110,9 @@
     <input type="hidden" name="id" id="context_id" value=""/>
     <ul class="field_list">
         <li class="even">
-            <label class="fieldlabel" for="customer_name">Customer</label>
-            <input dojoType="dijit.form.FilteringSelect" required="true" store="customerStore" value="" id="customer_name"
-                   searchAttr="name" name="customer_name"/>
+            <label class="fieldlabel" for="context_customer_id">Customer</label>
+            <input dojoType="dijit.form.FilteringSelect" required="true" store="customerStore" value="" id="context_customer_id"
+                   searchAttr="name" name="customer_id"/>
         </li>
         <li class="odd">
             <label class="fieldlabel" for="domain">Domain</label>
@@ -147,8 +146,8 @@
                    trim="true"/>
         </li>
         <li class="even">
-            <label class="fieldlabel" for="caller_id_number">CallerID Number</label>
-            <input dojoType="dijit.form.FilteringSelect" required="true" store="didStore" value="" id="caller_id_number"
+            <label class="fieldlabel" for="context_edit_caller_id_number">CallerID Number</label>
+            <input dojoType="dijit.form.FilteringSelect" required="true" store="didStore" value="" id="context_edit_caller_id_number"
                    searchAttr="did" name="caller_id_number"/>
 
         </li>

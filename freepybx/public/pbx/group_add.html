@@ -66,10 +66,10 @@
     <ul class="field_list">
         <li class="even">
             <label class="fieldlabel">Group Name</label>
-            <input type="text" required="true" name="group_name" placeholder="e.g. Sales"
+            <input type="text" required="true" name="group_name" placeholder="e.g. Sales Group"
                    dojoType="dijit.form.ValidationTextBox"
                    missingMessage="Please add a group name."
-                   regExp="\b[a-zA-Z0-9_]{2,16}\b"
+                   regExp="\b[a-zA-Z0-9_ ]{2,32}\b"
                    promptMessage="Please enter a valid group name."
                    invalidMessage="Invalid group."
                    trim="true"

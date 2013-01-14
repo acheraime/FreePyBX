@@ -87,6 +87,7 @@
         dijit.byId("cust_edit_url").set("value", obj.url);
         dijit.byId("cust_edit_default_gateway").set("value", obj.default_gateway);
         dijit.byId("cust_edit_pbx_profile").set("value", obj.pbx_profile_id);
+        dijit.byId("custadd_max_extensions").set("value", obj.max_extensions);
         dijit.byId("cust_edit_hard_channel_limit").set("value", obj.hard_channel_limit);
         dijit.byId("cust_edit_channel_audio").set("value", obj.channel_audio);
     }
@@ -215,6 +216,18 @@
             <label class="fieldlabel" for="cust_edit_has_call_center">Call Center</label>
             <input name="has_call_center" id="cust_edit_has_call_center" value="true"
                    checked="false" dojoType="dijit.form.CheckBox"/>
+        </li>
+        <li class="odd">
+            <label class="fieldlabel" for="custadd_max_extensions">Extension Limit</label>
+            <input type="text" id="custadd_max_extensions" name="max_extensions" size="30"
+                   dojoType="dijit.form.ValidationTextBox"
+                   required="true"
+                   missingMessage="Please provide an extension limit. 0 for unlimited."
+                   regExp="\b[0-9]{1,4}\b"
+                   promptMessage="Please enter a valid extension limit. 0 for unlimited."
+                   invalidMessage="Invalid extension limit."
+                   trim="true" value="0"
+                    />
         </li>
         <li class="even">
             <label class="fieldlabel">Channel Limit</label>
