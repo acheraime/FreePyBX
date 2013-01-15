@@ -171,7 +171,7 @@ function get_route_by_id(id)
 end
 
 --[[ Hard limit. ]]--
-function get_inbound_channel_limit(id)
+function get_hard_channel_limit(id)
     db = assert(con:execute(string.format("SELECT hard_channel_limit FROM customers WHERE id = %d", tonumber(id))))
     return db:fetch({}, "a")
 end
@@ -756,15 +756,15 @@ if is_outbound and is_authed then
 
     log("Context: "..context)
     log("Domain: "..domain)
-    log("Channels: " ..channels)
-    log("Customer limit" ..customer['hard_channel_limit'])
+    log("Channels used: " ..channels)
+    log("Channel limit: " ..customer['hard_channel_limit'])
 
     if channels >= tonumber(customer['hard_channel_limit']) then
         log("Limit reached...")
         session:execute("playback", "/usr/local/freeswitch/recordings/channel_audio/"..customer['channel_audio'])
         session:hangup()
     else
-        log("Channels available...")
+        log("Channels are available to customer...")
         log(tonumber(customer['hard_channel_limit']))
     end
 
