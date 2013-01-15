@@ -88,7 +88,7 @@
         dijit.byId("tel").set("value", obj.tel);
         dijit.byId("mobile").set("value", obj.mobile);
         dijit.byId("notes").set("value", obj.notes);
-        dijit.byId("active").set("checked", obj.active);
+        dijit.byId("active").set("value", obj.active);
         dijit.byId("group_id").set("value", obj.group_id);
     }
 
@@ -190,7 +190,7 @@
         </li>
         <li class="odd">
             <label class="fieldlabel">Active</label>
-            <input type="text" name="active" id="active" dojoType="dijit.form.CheckBox"/>
+            <input name="active" id="active" dojoType="dijit.form.CheckBox" value="true" checked="false"/>
         </li>
         <li class="even">
             <label class="fieldlabel" for="group_id">Group</label>
@@ -199,7 +199,7 @@
         </li>
         <li class="odd">
             <label class="fieldlabel">Portal Extension</label>
-            <input dojoType="dijit.form.FilteringSelect" required="true" store="loginExtension" value=""
+            <input dojoType="dijit.form.FilteringSelect" required="false" store="loginExtension" value=""
                    id="portal_extension" searchAttr="extension" name="extension" />
         </li>
         <li class="even">

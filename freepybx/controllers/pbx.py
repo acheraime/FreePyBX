@@ -505,6 +505,9 @@ class PbxController(BaseController):
             else:
                 ext_failed = True
 
+            if PbxEndpoint.query.filter(Customer.id==session['customer_id']).count() >= customer.max_extensions:
+                return "Sorry, so have reached your maximum extension limit."
+
             if not ext_failed:
                 endpoint = PbxEndpoint()
                 endpoint.auth_id = form_result.get("extension")
@@ -600,8 +603,7 @@ class PbxController(BaseController):
         schema = UserEditForm()
         try:
             form_result = schema.to_python(request.params)
-            user = User.query.filter(User.id==form_result.get("id"))\
-                                .filter(User.customer_id==session['customer_id']).first()
+            user = User.query.filter(User.id==form_result.get("id")).filter(User.customer_id==session['customer_id']).first()
             if form_result.get("username") != user.username:
                 if not get_usernames(str(form_result.get("username", None))):
                     user.username = form_result.get("username")
@@ -616,14 +618,15 @@ class PbxController(BaseController):
             user.zip = form_result.get("zip")
             user.tel = form_result.get("tel")
             user.mobile = form_result.get("mobile")
-            user.portal_extension = form_result.get('extension', 0)
-            user.active = True if form_result.get("active", None) is not None else False
+            user.portal_extension = form_result.get('extension')
+            user.active = True if form_result.get('active')=="true" else False
             user.customer_id = session["customer_id"]
             user.notes = form_result.get("notes")
-            db.commit(); db.flush()
+            db.flush()
+            db.commit()
 
-            db.execute("UPDATE user_groups SET group_id = :group_id where user_id = :user_id",\
-                    {'group_id': form_result.get('group_id', 3) , 'user_id': u.id})
+            db.execute("UPDATE user_groups SET group_id = :group_id where user_id = :user_id",
+                {'group_id': form_result.get('group_id'),'user_id': user.id})
 
             db.flush()
             db.commit()
@@ -638,7 +641,6 @@ class PbxController(BaseController):
     def update_users_grid(self, **kw):
 
         try:
-
             w = loads(urllib.unquote_plus(request.params.get("data")))
 
             for i in w['modified']:
@@ -747,7 +749,7 @@ class PbxController(BaseController):
         schema = ExtensionForm()
         customer = Customer.query.filter(Customer.id==session['customer_id']).first()
 
-        if customer.max_extensions >= PbxEndpoint.query.filter(Customer.id==session['customer_id']).count():
+        if PbxEndpoint.query.filter(Customer.id==session['customer_id']).count() >= customer.max_extensions:
             return "Sorry, so have reached your maximum extension limit. Please contact customer service."
 
         try:
@@ -2273,7 +2275,6 @@ class PbxController(BaseController):
             db.remove()
             return 'Validation Error: Please correct form inputs and resubmit.'
 
-
     @authorize(logged_in)
     def ivr_edit(self, **kw):
         schema = IVREditForm()
@@ -2425,7 +2426,7 @@ class PbxController(BaseController):
                 ivr.name = i['name']
 
                 route = PbxRoute.query.filter_by(context=session['context']).\
-                filter(PbxRoute.pbx_route_type_id==5).filter(PbxRoute.pbx_to_id==int(i['id'])).first()
+                    filter(PbxRoute.pbx_route_type_id==5).filter(PbxRoute.pbx_to_id==int(i['id'])).first()
                 route.name = i['name']
 
                 db.flush()
@@ -2736,7 +2737,6 @@ class PbxController(BaseController):
     @authorize(logged_in)
     def edit_customer(self):
         schema = CustomerForm()
-
         try:
             form_result = schema.to_python(request.params)
             customer = Customer.query.filter(Customer.id==session['customer_id']).first()
@@ -2826,7 +2826,6 @@ class PbxController(BaseController):
             ids.append(r.id)
 
         return dict({'names': names, 'ids': ids})
-
 
     @authorize(logged_in)
     def call_stats(self):

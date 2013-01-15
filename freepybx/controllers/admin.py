@@ -593,10 +593,16 @@ class AdminController(BaseController):
         items=[]
         row = PbxGateway.query.filter(PbxGateway.id==id).first()
         profile = PbxProfile.query.filter_by(id=row.pbx_profile_id).first()
-        items.append({'id': row.id, 'name': row.name, 'pbx_profile_id': row.pbx_profile_id, 'username': row.username, 'password': row.password,
-                      'proxy': row.proxy, 'register': row.register, 'register_transport': row.register_transport, 'reg_id': row.reg_id, 'rfc5626': row.rfc5626,
-                      'extension': row.extension, 'realm': row.realm, 'from_domain': row.from_domain, 'expire_seconds': row.expire_seconds, 'retry_seconds': row.retry_seconds,
-                      'ping': row.ping, 'context': row.context, 'caller_id_in_from': row.caller_id_in_from,
+        items.append({'id': row.id, 'name': row.name, 'pbx_profile_id': row.pbx_profile_id,
+                      'username': row.username, 'password': row.password,
+                      'proxy': row.proxy, 'register': row.register,
+                      'register_transport': row.register_transport,
+                      'reg_id': row.reg_id, 'rfc5626': row.rfc5626,
+                      'extension': row.extension, 'realm': row.realm,
+                      'from_domain': row.from_domain, 'expire_seconds': row.expire_seconds,
+                      'retry_seconds': row.retry_seconds,
+                      'ping': row.ping, 'context': row.context,
+                      'caller_id_in_from': row.caller_id_in_from,
                       'mask': row.mask, 'contact_params': row.contact_params, })
 
         out = dict({'identifier': 'id', 'label': 'name', 'items': items})
@@ -811,7 +817,7 @@ class AdminController(BaseController):
         schema = DIDForm()
         try:
             form_result = schema.to_python(request.params)
-            customer = Customer.query.filter_by(name=form_result.get('customer_name', None)).first()
+            customer = Customer.query.filter_by(id=form_result.get('customer_id', 0)).first()
             if customer:
                 db.add(PbxDid(form_result.get('did', None), customer.id,
                     customer.context, customer.context, form_result.get('t38', False), form_result.get('e911', False),

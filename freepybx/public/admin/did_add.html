@@ -27,8 +27,6 @@
 <html xmlns="http://www.w3.org/1999/xhtml"
       xmlns:xi="http://www.w3.org/2001/XInclude"
       xmlns:py="http://genshi.edgewall.org/">
-
-
 <script charset="UTF-8" type="text/javascript">
 
     dojo.require("dijit.form.FilteringSelect");
@@ -43,7 +41,6 @@
     dojo.require("dojox.validate._base");
     dojo.require("dijit.form.FilteringSelect");
     dojo.require("dojo.data.ItemFileReadStore");
-
 
     function didFormHandler() {
         if(dijit.byId("did_add_form").validate()) {
@@ -88,7 +85,7 @@
             <label class="fieldlabel" for="did_add_customer_name">Customer</label>
             <div dojoType="dojo.data.ItemFileReadStore" jsId="customer_store" url="/admin/customers"></div>
             <input dojoType="dijit.form.FilteringSelect" required="true" store="customerStore" value="" searchAttr="name"
-                   name="customer_name" id="did_add_customer_name"/>
+                   name="customer_id" id="did_add_customer_name"/>
         </li>
         <li class="even">
             <label class="fieldlabel" for="add_did_active">Active</label>
