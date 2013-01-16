@@ -28,7 +28,7 @@ from pylons.controllers.util import abort, redirect
 from freepybx.lib.base import BaseController, render
 from freepybx.model import meta
 from freepybx.model.meta import *
-from freepybx.model.meta import Session as db
+from freepybx.model.meta import db
 from genshi import HTML
 from pylons import config
 from pylons.decorators.rest import restrict

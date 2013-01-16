@@ -50,6 +50,11 @@
         filter:true
     };
 
+    function viewTicket(id) {
+        var item = ticketGrid.selection.getSelected();
+        dijit.byId("adminTicketContent").set("href", "/pbx/ticket_view/"+id.id);
+    }
+
     ticketStore._saveCustom = function (saveComplete, saveFailed) {
         var changeSet = ticketStore._pending;
         var changes = {};
@@ -292,7 +297,11 @@
         <button dojoType="dijit.form.Button" iconClass="dijitIconNewTask">
             View Notes
             <script type="dojo/method" event="onClick">
-                ticketStore.save();
+                if (ticketGrid.selection.getSelected()[0] == undefined) {
+                alert("Please select a ticket to view!");
+                return false;
+                }
+                viewTicket(ticketGrid.selection.getSelected()[0]);
             </script>
         </button>
     </div>

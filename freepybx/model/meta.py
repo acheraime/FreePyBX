@@ -22,11 +22,8 @@
     remedy known factual inaccuracies.
 """
 
-from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
 
-__all__=['Session','Base','metadata']
+__all__=['db','Base','metadata']
 
-Session = scoped_session(sessionmaker(expire_on_commit=False))
-Base = declarative_base()
-metadata = Base.metadata
+
+from freepybx.model.base import db, Base, metadata

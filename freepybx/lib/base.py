@@ -22,12 +22,9 @@
     remedy known factual inaccuracies.
 
 '''
-
 from pylons.controllers import WSGIController
 from pylons.templating import render_genshi as render
-
-from freepybx.model.meta import Session
-
+from freepybx.model.meta import db
 from paste.debug.profile import *
 
 
@@ -45,4 +42,4 @@ class BaseController(WSGIController):
         try:
             return WSGIController.__call__(self, environ, start_response)
         finally:
-            Session.remove()
+            db.remove()

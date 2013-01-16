@@ -18,22 +18,25 @@
     copyright notices, patent notices, disclaimers of warranty, or limitations
     of liability) contained within the Source Code Form of the Covered Software,
     except that You may alter any license notices to the extent required to
-    remedy known factual inaccuracies."""
+    remedy known factual inaccuracies.
+"""
 
 import logging
-from freepybx.lib import helpers as h
 from datetime import datetime
+
 import pyamf
 from pyamf import amf3
+
 import pylons
 from pylons.decorators import jsonify
 from pylons import config
-from freepybx.lib import template
+
+from freepybx.lib import template, helpers as h
 from freepybx.model import *
 from freepybx import model
 from freepybx.model import meta
 from freepybx.model.meta import *
-from freepybx.model.meta import Session as db
+from freepybx.model.meta import db
 
 # In case we are just debugging without freeswitch.
 try:

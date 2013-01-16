@@ -27,7 +27,7 @@ from sqlalchemy import Table, ForeignKey, Column
 from sqlalchemy.types import String, Integer, DateTime, Text, Boolean, Float,\
     Time, TIMESTAMP, LargeBinary, Enum, Date, Unicode, UnicodeText
 from sqlalchemy.orm import mapper, relation, backref, synonym, composite, column_property, validates, interfaces, Query
-from freepybx.model.meta import metadata, Session
+from freepybx.model.meta import metadata, db
 
 
 

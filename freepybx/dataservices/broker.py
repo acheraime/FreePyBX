@@ -50,8 +50,8 @@ from datetime import datetime
 import pyamf
 import sys
 
-Session = scoped_session(sessionmaker(autoflush=True,autocommit=True,expire_on_commit=False))
-Session.configure(bind=create_engine('postgresql://freepybx:secretpass1@127.0.0.1/freepybx'))
+db = scoped_session(sessionmaker(autoflush=True,autocommit=True,expire_on_commit=False))
+db.configure(bind=create_engine('postgresql://freepybx:secretpass1@127.0.0.1/freepybx'))
 
 decoder = Decoder(amf3=True)
 encoder = Encoder(amf3=True)
@@ -103,7 +103,7 @@ class Broker(Protocol):
             return
         
         self.sid = obj['sid']
-        u = Session.query(User.first_name, User.last_name, User.portal_extension, User.tel, \
+        u = db.query(User.first_name, User.last_name, User.portal_extension, User.tel, \
                           User.customer_id, Customer.context).join(Customer)\
                           .filter(Customer.id==User.customer_id).filter(User.session_id==obj['sid']).first()
         self.name = u[0]+' '+u[1]
@@ -142,7 +142,7 @@ class Broker(Protocol):
                 con = ESLconnection(ESL_HOST, ESL_PORT, ESL_PASS) 
                 if con.connected:
                     uuid = str(obj['message']).split(":")[0]
-                    ch = Session.execute("SELECT pbx_dids.context FROM pbx_dids INNER JOIN channels ON channels.dest = pbx_dids.did WHERE uuid=:uuid",{'uuid': uuid}).fetchone()
+                    ch = db.execute("SELECT pbx_dids.context FROM pbx_dids INNER JOIN channels ON channels.dest = pbx_dids.did WHERE uuid=:uuid",{'uuid': uuid}).fetchone()
                     to_route = str(obj['message']).split(":")[1]
                     con.bgapi("uuid_transfer", uuid+" -both "+" "+to_route+" XML "+str(ch[0]));                                
             elif cmd == 'INSTANTMESSAGE':

@@ -27,13 +27,11 @@ from datetime import datetime
 from sqlalchemy import ForeignKey, Column
 from sqlalchemy.types import Integer, DateTime, Boolean, Unicode, UnicodeText
 from sqlalchemy.orm import relation, synonym, relationship, backref
-from freepybx.model.meta import Session, Base
+from freepybx.model.meta import db, Base
 
 
 class CallCenterQueue(Base):
     __tablename__='call_center_queues'
-
-    query = Session.query_property()
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     domain = Column(Unicode(64), default=u"sip.vwna.com")
@@ -53,7 +51,8 @@ class CallCenterQueue(Base):
     tier_rule_agent_no_wait = Column(Boolean, default=True)
     discard_abandoned_after = Column(Integer, default=300)
     abandoned_resume_allowed = Column(Boolean, default=False)
-    failed_route_id = Column(Integer, ForeignKey('pbx_routes.id', onupdate="CASCADE", ondelete="CASCADE"))
+    failed_route_id = Column(Integer, ForeignKey('pbx_routes.id',
+        onupdate="CASCADE", ondelete="CASCADE"))
     record_calls = Column(Boolean, default=False)
     announce_position = Column(Boolean, default=False)
     announce_sound = Column(Unicode(1024))
@@ -67,8 +66,6 @@ class CallCenterQueue(Base):
 class CallCenterAgentLog(Base):
     __tablename__='call_center_agent_logs'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     agent = Column(Unicode(128), nullable=False)
     queue = Column(Unicode(128), nullable=False)
@@ -81,14 +78,14 @@ class CallCenterAgentLog(Base):
 class CallCenterAgent(Base):
     __tablename__='call_center_agents'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     domain = Column(Unicode(64), default=u"sip.vwna.com")
     context = Column(Unicode(128), default=u"sip.vwna.com")
     extension = Column(Unicode(15), nullable=True)
-    user_id = Column(Integer, ForeignKey('users.id', onupdate="CASCADE", ondelete="CASCADE"))
-    pbx_endpoint_id = Column(Integer, ForeignKey('pbx_endpoints.id', onupdate="CASCADE", ondelete="CASCADE"))
+    user_id = Column(Integer, ForeignKey('users.id',
+        onupdate="CASCADE", ondelete="CASCADE"))
+    pbx_endpoint_id = Column(Integer, ForeignKey('pbx_endpoints.id',
+        onupdate="CASCADE", ondelete="CASCADE"))
     timeout = Column(Integer, default=20)
     name = Column(Unicode(255))
     system = Column(Unicode(255))
@@ -116,8 +113,6 @@ class CallCenterAgent(Base):
 class CallCenterCaller(Base):
     __tablename__='call_center_callers'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     queue = Column(Unicode(255))
     system = Column(Unicode(255))
@@ -140,8 +135,6 @@ class CallCenterCaller(Base):
 class CallCenterTier(Base):
     __tablename__='call_center_tiers'
 
-    query = Session.query_property()
-
     def __init__(self, queue=None, agent=None, state='Waiting', level=None, position=None):
         self.queue = queue
         self.agent = agent
@@ -150,8 +143,10 @@ class CallCenterTier(Base):
         self.position = position
 
     id = Column(Integer, autoincrement=True, primary_key=True)
-    queue_id = Column(Integer, ForeignKey('call_center_queues.id', onupdate="CASCADE", ondelete="CASCADE"))
-    agent_id = Column(Integer, ForeignKey('call_center_agents.id', onupdate="CASCADE", ondelete="CASCADE"))
+    queue_id = Column(Integer, ForeignKey('call_center_queues.id',
+        onupdate="CASCADE", ondelete="CASCADE"))
+    agent_id = Column(Integer, ForeignKey('call_center_agents.id',
+        onupdate="CASCADE", ondelete="CASCADE"))
     extension = Column(Unicode(15), nullable=True)
     queue = Column(Unicode(255))
     agent = Column(Unicode(255))

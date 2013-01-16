@@ -27,15 +27,11 @@ from datetime import datetime
 from sqlalchemy import ForeignKey, Column
 from sqlalchemy.types import Integer, DateTime, Boolean, Unicode, UnicodeText
 from sqlalchemy.orm import relation, synonym, relationship, backref
-from freepybx.model.meta import Session, Base
-
-
+from freepybx.model.meta import db, Base
 
 
 class CrmAccountStatusType(Base):
     __tablename__='crm_account_status_types'
-
-    query = Session.query_property()
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     context = Column(Unicode(64))
@@ -46,8 +42,6 @@ class CrmAccountStatusType(Base):
 class CrmGroup(Base):
     __tablename__='crm_groups'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     context = Column(Unicode(64))
     name = Column(Unicode(64))
@@ -57,19 +51,17 @@ class CrmGroup(Base):
 class CrmCampaignGroup(Base):
     __tablename__='crm_campaign_groups'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     context = Column(Unicode(64))
     name = Column(Unicode(64))
-    crm_group_id = Column(Integer, ForeignKey('crm_groups.id', onupdate="CASCADE", ondelete="CASCADE"))
-    crm_campaign_id = Column(Integer, ForeignKey('crm_campaigns.id', onupdate="CASCADE", ondelete="CASCADE"))
+    crm_group_id = Column(Integer, ForeignKey('crm_groups.id',
+        onupdate="CASCADE", ondelete="CASCADE"))
+    crm_campaign_id = Column(Integer, ForeignKey('crm_campaigns.id',
+        onupdate="CASCADE", ondelete="CASCADE"))
 
 
 class CrmCampaign(Base):
     __tablename__='crm_campaigns'
-
-    query = Session.query_property()
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     context = Column(Unicode(64))
@@ -80,18 +72,15 @@ class CrmCampaign(Base):
 class CrmGroupMember(Base):
     __tablename__='crm_group_members'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     context = Column(Unicode(64))
-    crm_group_id = Column(Integer, ForeignKey('crm_groups.id', onupdate="CASCADE", ondelete="CASCADE"))
+    crm_group_id = Column(Integer, ForeignKey('crm_groups.id',
+        onupdate="CASCADE", ondelete="CASCADE"))
     extension  = Column(Unicode(15))
 
 
 class CrmLeadType(Base):
     __tablename__='crm_lead_types'
-
-    query = Session.query_property()
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     context = Column(Unicode(64))
@@ -101,8 +90,6 @@ class CrmLeadType(Base):
 
 class CrmAccount(Base):
     __tablename__ = 'crm_accounts'
-
-    query = Session.query_property()
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     first_name = Column(Unicode(64))
@@ -124,7 +111,8 @@ class CrmAccount(Base):
     mobile = Column(Unicode(15))
     active = Column(Boolean, default=True)
     lat_lon = Column(Unicode(100), default=u"0,0")
-    crm_campaign_id = Column(Integer, ForeignKey('crm_campaigns.id', onupdate="CASCADE"))
+    crm_campaign_id = Column(Integer, ForeignKey('crm_campaigns.id',
+        onupdate="CASCADE"))
 
     user_id = Column(Integer)
     customer_id = Column(Integer, ForeignKey('customers.id', onupdate="CASCADE"))
@@ -146,8 +134,6 @@ class CrmAccount(Base):
 class CrmLog(Base):
     __tablename__='crm_logs'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     text = Column(UnicodeText, nullable=False)
     created = Column(DateTime,default=datetime.date(datetime.now()))
@@ -157,9 +143,8 @@ class CrmLog(Base):
 class CrmNote(Base):
     __tablename__='crm_notes'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     created = Column(DateTime,default=datetime.date(datetime.now()))
     note = Column(UnicodeText, nullable=False)
-    crm_account_id = Column(Integer, ForeignKey('crm_accounts.id', onupdate="CASCADE", ondelete="CASCADE"))
+    crm_account_id = Column(Integer, ForeignKey('crm_accounts.id',
+        onupdate="CASCADE", ondelete="CASCADE"))

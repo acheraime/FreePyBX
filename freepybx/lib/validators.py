@@ -43,7 +43,7 @@ import transaction
 from itertools import chain
 from freepybx.model import *
 from util import *
-from freepybx.model.meta import Session as db
+from freepybx.model.meta import db
 import re
 
 
@@ -128,7 +128,6 @@ def queue_delete(q):
         PbxRoute.query.filter(PbxRoute.pbx_route_type_id==10).filter(PbxRoute.pbx_to_id==queue.id).delete()
         CallCenterTier.query.filter(CallCenterTier.queue_id==queue.id).delete()
     CallCenterQueue.query.filter(CallCenterQueue.id==q.id).filter(CallCenterQueue.context==session['context']).delete()
-    db.commit()
     db.flush()
     return True
 
@@ -168,8 +167,10 @@ def get_route_labels_ids():
                           "FROM pbx_routes sr "
                           "INNER JOIN pbx_route_types srt ON sr.pbx_route_type_id = srt.id "
                           "WHERE sr.context = :context", {'context': session['context']}):
+
         route_labels.append(row.name)
         route_ids.append(row.id)
+
     db.remove()
     return (route_labels,route_ids)
 

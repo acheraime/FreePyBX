@@ -51,7 +51,7 @@ from pylons.decorators import validate, jsonify
 from freepybx.lib.base import BaseController, render
 from freepybx.model import meta
 from freepybx.model.meta import *
-from freepybx.model.meta import Session as db
+from freepybx.model.meta import db
 from freepybx.lib.pymap.imap import Pymap
 from freepybx.lib.auth import *
 from freepybx.lib.forms import *
@@ -64,6 +64,8 @@ from stat import *
 
 from sqlalchemy import Date, cast, desc, asc
 from sqlalchemy.orm import join
+from sqlalchemy.exc import DatabaseError, IntegrityError
+import transaction
 
 try:
     cgitb.enable()
@@ -265,16 +267,11 @@ class PbxController(BaseController):
             db.remove()
 
     def dialplan(self, **kw):
-        """ This is a recursion engine that creates several objects of nested
-            dictionaries and arrays and that are subsequently passed into the
-            template context of pylons and interpolated into the xml template
-            stream by genshi to create XML dynamically for FreeSWITCH.
-
-            We create this for call control as well as use lua for setting
-            inbound routes by context from the default context, since we are
-            using only one profile for all sip traffic. Both the XML and lua
-            call control are needed. It helps you be lazy and hardcode trash
-            into the dialplan that you will eventually forget about.
+        """ The dialplan for FreeSWITCH.  The XML file that is dynamically generated
+        from the db in real-time.  Bad news is that freeswitch can have disk IO issues
+        because each time this is called, iot writes to a file in /tmp to read it.
+        Seems pretty harsh, so best performance happens when you cron a curl snapshot
+        of this every (hour or so) and write it to the XML config directory for FreeSWITCH.
 
             :param c.profile: request parameter posted from FreeSWITCH
             :type c.profile: type description
@@ -287,30 +284,6 @@ class PbxController(BaseController):
 
             Renders:  ``xml/dialplan.xml``
 
-            I'll highlight the important stuff.
-
-            Pull all of the dids from the db to setup call control for lua
-            from the default context on incoming calls from outside the switch.
-
-            Iterate over the contexts and create objects for the xml stream engine.
-            These objects are passed to dialplan.xml in the templates/xml directory.
-
-            Retrieve all of the routes.
-
-            Only concerned with what is needed for transfers to the xml context.
-
-            More to do in xml with virtual extensions for things like continue on fail
-            timeouts to local voicemail boxes.
-
-            After we check and make sure that our route object is iterable,
-            we grab the conditions and actions for the route. We have a template
-            meta class and default set of conditions/actions for orphaned routes.
-            Not really needed, but it will help you when you make mistakes your
-            users will still get dialplan.
-
-            Retrieve the route conditions and actions for the conditions.
-
-            Serialize into context template and pass objects to xml rendering stream.
         """
 
         c.contexts = []
@@ -384,7 +357,6 @@ class PbxController(BaseController):
     @jsonify
     def users(self):
         items=[]
-
         try:
             for row in User.query.filter(User.customer_id==session['customer_id']).order_by(asc(User.id)).all():
                 exts = []
@@ -412,7 +384,6 @@ class PbxController(BaseController):
     @jsonify
     def user_by_id(self, id, **kw):
         items=[]
-
         try:
             for row in User.query.filter(User.customer_id==session['customer_id'])\
                                         .filter(User.id==id).order_by(asc(User.id)).all():
@@ -464,9 +435,7 @@ class PbxController(BaseController):
             group = Group.query.filter(Group.id==form_result.get("group_id", 2)).first()
             group.users.append(user)
             db.add(group)
-
             db.flush()
-            db.commit()
 
             context = PbxContext.query.filter(PbxContext.customer_id==session['customer_id']).first()
 
@@ -487,7 +456,6 @@ class PbxController(BaseController):
                     email = form_result.get("email", None)
 
                     db.add(email)
-                    db.commit()
                     db.flush()
             else:
                 email = None
@@ -531,7 +499,6 @@ class PbxController(BaseController):
 
                 db.add(endpoint)
                 db.flush()
-                db.commit()
 
                 route = PbxRoute()
                 route.context = context.context
@@ -544,7 +511,7 @@ class PbxController(BaseController):
                 route.pbx_to_id = endpoint.id
 
                 db.add(route)
-                db.commit(); db.flush()
+                db.flush()
 
                 condition = PbxCondition()
                 condition.context = context.context
@@ -554,7 +521,7 @@ class PbxController(BaseController):
                 condition.pbx_route_id = route.id
 
                 db.add(condition)
-                db.commit(); db.flush()
+                db.flush()
 
                 action = PbxAction()
                 action.pbx_condition_id = con.id
@@ -565,7 +532,7 @@ class PbxController(BaseController):
                 action.data = u'hangup_after_bridge=true'
 
                 db.add(action)
-                db.commit(); db.flush()
+                db.flush()
 
                 action = PbxAction()
                 action.pbx_condition_id = con.id
@@ -575,8 +542,8 @@ class PbxController(BaseController):
                 action.application = u'set'
                 action.data = u'call_timeout=20'
 
-                db.add(s)
-                db.commit(); db.flush()
+                db.add(action)
+                db.flush()
 
                 action = PbxAction()
                 action.pbx_condition_id = condition.id
@@ -587,14 +554,12 @@ class PbxController(BaseController):
                 action.data = u'{force_transfer_context='+context.context+'}sofia/'+str(get_profile())+'/'+form_result.get("extension")+'%'+context.context
 
                 db.add(action)
-                db.flush()
-                db.commit()
+                transaction.commit()
 
         except validators.Invalid, error:
-            db.remove()
+            transaction.abort()
             return 'Validation Error: %s' % error
 
-        db.remove()
         return "Sucessfully added user."
 
     @restrict("POST")
@@ -623,16 +588,14 @@ class PbxController(BaseController):
             user.customer_id = session["customer_id"]
             user.notes = form_result.get("notes")
             db.flush()
-            db.commit()
 
             db.execute("UPDATE user_groups SET group_id = :group_id where user_id = :user_id",
                 {'group_id': form_result.get('group_id'),'user_id': user.id})
 
-            db.flush()
-            db.commit()
-            db.remove()
+            transaction.commit()
 
         except validators.Invalid, e:
+            transaction.abort()
             return 'Error updating user: %s' % e
 
         return "User successfully updated."
@@ -651,36 +614,40 @@ class PbxController(BaseController):
                 user.username = i['username']
                 user.password = i['password']
 
-                db.flush()
-                db.commit()
-                db.remove()
+                transaction.commit()
 
             return "Successfully updated users."
+
         except Exception, e:
+            transaction.abort()
             return "Error: %s" % e
 
     @restrict("GET")
     @authorize(logged_in)
     def del_user(self, **kw):
 
-        u = User.query.filter(User.id==request.params['id']).filter(User.customer_id==session['customer_id']).first()
-        delete_extension_by_user_id(u.id)
-
         try:
             id = request.params['id']
-            if not id.isdigit():
-                raise Exception("YOUR IP: "+str(request.params["HTTP_REMOTE_DUDE"])+" INFO WAS SENT TO THE ADMIN FOR BLOCKING.")
-            User.query.filter(User.id==id).filter(User.customer_id==session['customer_id']).delete()
-            db.commit(); db.flush()
-        except:
-            db.remove()
-            return "Error deleting user."
+            user = User.query.filter(User.id==id).filter(User.customer_id==session['customer_id']).first()
+            delete_extension_by_user_id(user.id)
 
-        db.remove()
+            if not id.isdigit():
+                raise Exception("YOUR IP: "+str(request.params["HTTP_REMOTE_EU"])+" INFO WAS SENT TO THE ADMIN FOR BLOCKING.")
+            User.query.filter(User.id==id).filter(User.customer_id==session['customer_id']).delete()
+            transaction.commit()
+
+        except IntegrityError, e:
+            transaction.abort()
+            return "Error: This user still has routes pointing to an extension belonging to them."
+
+        except Exception, e:
+            transaction.abort()
+            return "Error deleting user: %s" % e
+
         return  "Successfully deleted user."
 
-    @authorize(logged_in)
     @jsonify
+    @authorize(logged_in)
     def extensions(self):
         items=[]
         try:
@@ -705,15 +672,12 @@ class PbxController(BaseController):
                                   'transfer_fallback_extension': endpoint.transfer_fallback_extension, 'is_online': is_online, 'ip': ip, 'port': port,
                                   'auto_provision': endpoint.auto_provision})
 
-            db.remove()
             return {'identifier': 'extension', 'label': 'name', 'items': items}
 
         except KeyError, e:
-            db.remove()
             return {'identifier': 'id', 'label': 'name', 'items': [], 'is_error': True, 'message': 'KeyError: ' + str(e)}
 
         except Exception, e:
-            db.remove()
             return {'identifier': 'id', 'label': 'name', 'items': [], 'is_error': True, 'message': 'Exception: ' + str(e)}
 
     @authorize(logged_in)
@@ -733,15 +697,13 @@ class PbxController(BaseController):
                                   'follow_me_2': endpoint.follow_me_2, 'follow_me_3': endpoint.follow_me_3, 'follow_me_4': endpoint.follow_me_4, 'call_timeout': endpoint.call_timeout,
                                   'timeout_destination': endpoint.timeout_destination, 'record_inbound_calls': endpoint.record_inbound_calls, 'record_outbound_calls': endpoint.record_outbound_calls,
                                   'mac': endpoint.mac, 'device_type_id': endpoint.device_type_id, 'auto_provision': endpoint.auto_provision, 'include_xml_directory': endpoint.include_xml_directory})
-            db.remove()
+
             return {'identifier': 'extension', 'label': 'name', 'items': items}
 
         except KeyError, e:
-            db.remove()
             return {'identifier': 'id', 'label': 'name', 'items': [], 'is_error': True, 'message': 'KeyError: ' + str(e)}
 
         except Exception, e:
-            db.remove()
             return {'identifier': 'id', 'label': 'name', 'items': [], 'is_error': True, 'message': 'Exception: ' + str(e)}
 
     @authorize(logged_in)
@@ -793,7 +755,6 @@ class PbxController(BaseController):
 
             db.add(endpoint)
             db.flush()
-            db.commit()
 
             route = PbxRoute()
             route.context = session['context']
@@ -807,7 +768,6 @@ class PbxController(BaseController):
 
             db.add(route)
             db.flush()
-            db.commit()
 
             condition = PbxCondition()
             condition.context = session['context']
@@ -818,7 +778,6 @@ class PbxController(BaseController):
 
             db.add(condition)
             db.flush()
-            db.commit()
 
             action = PbxAction()
             action.pbx_condition_id = condition.id
@@ -830,7 +789,6 @@ class PbxController(BaseController):
 
             db.add(action)
             db.flush()
-            db.commit()
 
             action = PbxAction()
             action.pbx_condition_id = condition.id
@@ -842,7 +800,6 @@ class PbxController(BaseController):
 
             db.add(action)
             db.flush()
-            db.commit()
 
             action = PbxAction()
             action.pbx_condition_id = condition.id
@@ -854,7 +811,6 @@ class PbxController(BaseController):
 
             db.add(action)
             db.flush()
-            db.commit()
 
             action = PbxAction()
             action.pbx_condition_id = condition.id
@@ -866,11 +822,10 @@ class PbxController(BaseController):
                      +str(get_profile())+'/'+form_result.get("extension")+'%'+session['context']
 
             db.add(action)
-            db.flush()
-            db.commit()
+            transaction.commit()
 
         except validators.Invalid, e:
-            db.remove()
+            transaction.abort()
             return 'Validation Error: %s' % e
 
         return "Successfully added extension %s" % form_result.get('extension')
@@ -911,7 +866,6 @@ class PbxController(BaseController):
 
             db.add(endpoint)
             db.flush()
-            db.commit()
 
             route = PbxRoute.query.filter(PbxRoute.pbx_route_type_id==1).\
             filter(PbxRoute.name==endpoint.auth_id).filter(PbxRoute.context==session['context']).first()
@@ -927,7 +881,6 @@ class PbxController(BaseController):
 
             db.add(condition)
             db.flush()
-            db.commit()
 
             action = PbxAction()
             action.pbx_condition_id = condition.id
@@ -939,7 +892,6 @@ class PbxController(BaseController):
 
             db.add(action)
             db.flush()
-            db.commit()
 
             action = PbxAction()
             action.pbx_condition_id = condition.id
@@ -951,7 +903,6 @@ class PbxController(BaseController):
 
             db.add(action)
             db.flush()
-            db.commit();
 
             action = PbxAction()
             action.pbx_condition_id = condition.id
@@ -963,7 +914,6 @@ class PbxController(BaseController):
 
             db.add(action)
             db.flush()
-            db.commit()
 
             action = PbxAction()
             action.pbx_condition_id = condition.id
@@ -974,40 +924,33 @@ class PbxController(BaseController):
             action.data = u'{force_transfer_context='+session['context']+'}sofia/'+str(get_profile())+'/'+endpoint.auth_id+'%'+session['context']
 
             db.add(action)
-            db.flush()
-            db.commit()
-            db.remove()
+            transaction.commit()
 
-            db.remove()
             return "Successfully edited extension %s." % endpoint.auth_id
 
         except validators.Invalid, e:
+            transaction.abort()
             return 'Validation Error: %s' % e
-
-
 
     @authorize(logged_in)
     def update_ext_grid(self, **kw):
 
         try:
-
             w = loads(urllib.unquote_plus(request.params.get("data")))
-
             e = None
 
             for i in w['modified']:
                 if i['name'].isdigit():
                     id = i['name']
-                    u = User.query.filter(User.id==int(id)).filter_by(customer_id=session['customer_id']).first()
-                    e = PbxEndpoint.query.filter(PbxEndpoint.auth_id==i['extension']).filter_by(user_context=session['context']).first()
-                    e.user_id = u.id
+                    user = User.query.filter(User.id==int(id)).filter_by(customer_id=session['customer_id']).first()
+                    endpoint = PbxEndpoint.query.filter(PbxEndpoint.auth_id==i['extension']).filter_by(user_context=session['context']).first()
+                    endpoint.user_id = user.id
                 else:
-                    e = PbxEndpoint.query.filter(PbxEndpoint.auth_id==i['extension']).filter_by(user_context=session['context']).first()
+                    endpoint = PbxEndpoint.query.filter(PbxEndpoint.auth_id==i['extension']).filter_by(user_context=session['context']).first()
 
-                e.password = i['password']
+                endpoint.password = i['password']
 
-                db.commit(); db.flush()
-                db.remove()
+                transaction.commit()
 
         except Exception, e:
             return "Error: %s" % e
@@ -1019,11 +962,18 @@ class PbxController(BaseController):
     def del_ext(self, **kw):
 
         try:
-            delete_extension_by_ext(request.params['extension'])
-        except:
-            return "Error deleting extension."
+            if delete_extension_by_ext(request.params['extension']):
+                transaction.commit()
 
-        return  "Successfully deleted extension."
+        except IntegrityError, e:
+            transaction.abort()
+            return "Error: There are routes still pointing to this extension."
+
+        except Exception, e:
+            transaction.abort()
+            return "Error deleting extension: %s" % e
+
+        return "Successfully deleted extension."
 
     @authorize(logged_in)
     @jsonify
@@ -1036,15 +986,12 @@ class PbxController(BaseController):
                 items.append({'id': extension.id, 'extension': extension.extension, 'did': extension.did,
                               'timeout': extension.timeout, 'pbx_route_id': extension.pbx_route_id})
 
-            db.remove()
             return {'identifier': 'id', 'label': 'extension', 'items': items}
 
         except KeyError, e:
-            db.remove()
             return {'identifier': 'id', 'label': 'extension', 'items': [], 'is_error': True, 'message': 'KeyError: ' + str(e)}
 
         except Exception, e:
-            db.remove()
             return {'identifier': 'id', 'label': 'extension', 'items': [], 'is_error': True, 'message': 'Exception: ' + str(e)}
 
     @authorize(logged_in)
@@ -1061,7 +1008,6 @@ class PbxController(BaseController):
 
             db.add(virtual_extension)
             db.flush()
-            db.commit()
 
             route = PbxRoute()
             route.context = session['context']
@@ -1074,13 +1020,13 @@ class PbxController(BaseController):
             route.pbx_to_id = virtual_extension.id
 
             db.add(route)
-            db.flush()
-            db.commit()
+            transaction.commit()
+
 
         except validators.Invalid, error:
+            transaction.abort()
             return 'Validation Error: %s' % error
 
-        db.remove()
         return "Successfully created virtual extension."
 
     @restrict("GET")
@@ -1089,7 +1035,9 @@ class PbxController(BaseController):
 
         try:
             delete_virtual_extension(request.params['extension'])
+            transaction.commit()
         except:
+            transaction.abort()
             return "Error deleting virtual extension."
 
         return  "Successfully deleted virtual extension."
@@ -1107,11 +1055,10 @@ class PbxController(BaseController):
                 virtual_extension.did = i['did']
                 virtual_extension.timeout = i['timeout']
                 virtual_extension.pbx_route_id = i['pbx_route_id']
-                db.flush()
-                db.commit()
+            transaction.commit()
 
         except DataInputError, error:
-            db.remove()
+            transaction.abort()
             return 'Error: %s' % error
 
         return "Successfully updated virtual extension."
@@ -1123,7 +1070,6 @@ class PbxController(BaseController):
         try:
             for virtual_mailbox in PbxVirtualMailbox.query.filter_by(context=session['context']).all():
                 items.append({'id': virtual_mailbox.id, 'extension': virtual_mailbox.extension, 'vm_password': virtual_mailbox.vm_password})
-            db.remove()
 
             return {'identifier': 'id', 'label': 'extension', 'items': items}
 
@@ -1138,8 +1084,6 @@ class PbxController(BaseController):
         try:
             for rule in PbxCallingRule.query.all():
                 items.append({'id': rule.id, 'name': rule.name})
-
-            db.remove()
 
             return {'identifier': 'id', 'label': 'name', 'items': items}
 
@@ -1157,7 +1101,6 @@ class PbxController(BaseController):
                           'skip_greeting': extension.skip_greeting, 'audio_file': extension.audio_file,
                           'vm_email': extension.vm_email, 'vm_attach_email': extension.vm_attach_email,
                           'vm_notify_email': extension.vm_notify_email, 'vm_save': extension.vm_save})
-            db.remove()
 
             return {'identifier': 'id', 'label': 'extension', 'items': items}
 
@@ -1185,7 +1128,6 @@ class PbxController(BaseController):
 
             PbxRoute.query.filter_by(pbx_route_type_id=3).filter_by(pbx_to_id=virtual_mailbox.id).delete()
             db.flush()
-            db.commit()
 
             route = PbxRoute()
             route.context = session['context']
@@ -1197,14 +1139,13 @@ class PbxController(BaseController):
             route.pbx_route_type_id = 3
             route.pbx_to_id = virtual_mailbox.id
 
-            db.add(r)
-            db.flush()
-            db.commit()
+            db.add(route)
+            transaction.commit()
 
         except validators.Invalid, error:
+            transaction.abort()
             return 'Validation Error: %s' % error
 
-        db.remove()
         return "Successfully added virtual voicemail box."
 
     @authorize(logged_in)
@@ -1226,7 +1167,6 @@ class PbxController(BaseController):
 
             db.add(virtual_mailbox)
             db.flush()
-            db.commit()
 
             route = PbxRoute()
             route.context = session['context']
@@ -1239,14 +1179,13 @@ class PbxController(BaseController):
             route.pbx_to_id = virtual_mailbox.id
 
             db.add(route)
-            db.flush()
-            db.commit()
+            transaction.commit()
+
+            return "Successfully added virtual voicemail box."
 
         except validators.Invalid, error:
+            transaction.abort()
             return 'Validation Error: %s' % error
-
-            db.remove()
-            return "Successfully added virtual voicemail box."
 
     @authorize(logged_in)
     def update_vmbox_grid(self, **kw):
@@ -1259,12 +1198,10 @@ class PbxController(BaseController):
                     return "A virtual mailbox and pin needs to be exactly 3 or 4 numbers."
                 virtual_mailbox = PbxVirtualMailbox.query.filter_by(id=i['id']).filter_by(context=session['context']).first()
                 virtual_mailbox.vm_password = i['vm_password'].strip()
-                db.flush()
-                db.commit()
-                db.remove()
+                transaction.commit()
 
         except DataInputError, error:
-            db.remove()
+            transaction.abort()
             return 'Error: %s' % error
 
         return "Successfully updated virtual mailbox."
@@ -1275,7 +1212,9 @@ class PbxController(BaseController):
 
         try:
             delete_virtual_mailbox(request.params['extension'])
+            transaction.commit()
         except:
+            transaction.abort()
             return "Error deleting virtual mailbox."
 
         return  "Successfully deleted virtual mailbox."
@@ -1294,8 +1233,6 @@ class PbxController(BaseController):
                               'no_answer_destination': group.no_answer_destination, 'members': ",".join(members),
                               'timeout': group.timeout})
 
-            db.remove()
-
             return {'identifier': 'id', 'label': 'name', 'items': items}
 
         except Exception, e:
@@ -1313,7 +1250,6 @@ class PbxController(BaseController):
             items.append({'id': group.id, 'name': group.name, 'ring_strategy': group.ring_strategy,
                           'no_answer_destination': group.no_answer_destination, 'members': ",".join(members),
                           'timeout': group.timeout})
-            db.remove()
 
             return {'identifier': 'id', 'label': 'name', 'items': items}
 
@@ -1363,14 +1299,12 @@ class PbxController(BaseController):
             route.pbx_to_id = group.id
 
             db.add(route)
-            db.flush()
-            db.commit()
-            db.remove()
+            transaction.commit()
 
             return "Successfully added group "+str(form_result.get('group_name'))+"."
 
         except validators.Invalid, error:
-            db.remove()
+            transaction.abort()
             return 'Validation Error: %s' % error
 
     @authorize(logged_in)
@@ -1389,7 +1323,6 @@ class PbxController(BaseController):
 
             db.delete(PbxRoute.query.filter_by(pbx_route_type_id=4).filter_by(pbx_to_id=form_result.get('group_id')).first())
             db.flush()
-            db.commit()
 
             group = PbxGroup()
             group.name = form_result.get('group_name')
@@ -1400,21 +1333,18 @@ class PbxController(BaseController):
 
             db.add(group)
             db.flush()
-            db.commit()
 
             if not form_result.get('group_extensions').split(","):
                 if not form_result.get('group_extensions').isdigit():
                     return "You need to have at least one extension to make a group."
                 else:
                     db.add(PbxGroupMember(group.id, form_result.get('group_extensions')))
-                    db.commit()
                     db.flush()
             else:
                 for ext in form_result.get('group_extensions').split(","):
                     if not ext.isdigit():
                         continue
                     db.add(PbxGroupMember(group.id, ext))
-                    db.commit()
                     db.flush()
 
             route = PbxRoute()
@@ -1428,12 +1358,10 @@ class PbxController(BaseController):
             route.pbx_to_id = group.id
 
             db.add(route)
-            db.flush()
-            db.commit()
-            db.remove()
+            transaction.commit()
 
         except validators.Invalid, error:
-            db.remove()
+            transaction.abort()
             return 'Validation Error: %s' % error
 
         return "Successfully added group "+str(form_result.get('group_name'))+"."
@@ -1449,7 +1377,6 @@ class PbxController(BaseController):
                 group.no_answer_destination = i['no_answer_destination']
                 group.ring_strategy = i['ring_strategy']
                 db.flush()
-                db.commit()
 
                 PbxGroupMember.query.filter(PbxGroupMember.pbx_group_id==i['id']).delete()
 
@@ -1457,10 +1384,11 @@ class PbxController(BaseController):
                     if not group_member.strip().isdigit():
                         continue
                     db.add(PbxGroupMember(i['id'], group_member.strip()))
-                    db.commit()
                     db.flush()
+
+                transaction.commit()
         except:
-            db.remove()
+            transaction.abort()
             return "Error updating group."
 
         return "Successfully updated group."
@@ -1471,8 +1399,15 @@ class PbxController(BaseController):
 
         try:
             delete_group(request.params['name'])
+            transaction.commit()
+
+        except IntegrityError, e:
+            transaction.abort()
+            return "Error: You must first delete routes still pointing to this group."
+
         except:
-            return "Error"
+            transaction.abort()
+            return "Error deleting group."
 
         return  "Successfully deleted group."
 
@@ -1492,7 +1427,6 @@ class PbxController(BaseController):
                     items.append({'id': did.id, 'did': did.did, 'route_name': "Broken Route!", 'pbx_route_id': 0})
 
             lbid = get_route_labels_ids()
-            db.remove()
 
             return {'identifier': 'id', 'label': 'name', 'items': items,'did_labels': lbid[0], 'did_ids': lbid[1]}
 
@@ -1508,11 +1442,9 @@ class PbxController(BaseController):
             for i in w['modified']:
                 did = PbxDid.query.filter_by(id=i['id']).filter_by(context=session['context']).first()
                 did.pbx_route_id = i['route_name']
-                db.flush()
-                db.commit()
-                db.commit()
+                transaction.commit()
         except:
-            db.remove()
+            transaction.abort()
             return "Error updating DID."
 
         return "Successfully updated DID."
@@ -1550,7 +1482,6 @@ class PbxController(BaseController):
         except:
             os.makedirs(dir)
 
-        db.remove()
         return {'identifier': 'path', 'label': 'name', 'items': files}
 
     @authorize(logged_in)
@@ -1564,25 +1495,23 @@ class PbxController(BaseController):
 
             db.add(fax)
             db.flush()
-            db.commit()
 
-            router = PbxRoute()
-            router.context = session['context']
-            router.domain = session['context']
-            router.name = form_result.get('fax_name')
-            router.continue_route = False
-            router.voicemail_enable = False
-            router.voicemail_ext = form_result.get('fax_name')
-            router.pbx_route_type_id = 12
-            router.pbx_to_id = fax.id
+            route = PbxRoute()
+            route.context = session['context']
+            route.domain = session['context']
+            route.name = form_result.get('fax_name')
+            route.continue_route = False
+            route.voicemail_enable = False
+            route.voicemail_ext = form_result.get('fax_name')
+            route.pbx_route_type_id = 12
+            route.pbx_to_id = fax.id
 
-            db.add(router)
-            db.flush()
-            db.commit()
+            db.add(route)
+            transaction.commit()
 
         except validators.Invalid, e:
-            db.remove()
-            return 'Validation Error: Please correct form inputs and resubmit: %s' %e
+            transaction.abort()
+            return 'Validation Error: Please correct form inputs and resubmit: %s' % str(e)
 
     @authorize(logged_in)
     @jsonify
@@ -1592,8 +1521,6 @@ class PbxController(BaseController):
         try:
             for ext in PbxFax.query.filter_by(context=session['context']).all():
                 items.append({'id': ext.id, 'extension': ext.extension})
-
-            db.remove()
 
             return {'identifier': 'id', 'label': 'extension', 'items': items}
 
@@ -1656,7 +1583,7 @@ class PbxController(BaseController):
         try:
             dir = fs_vm_dir+session['context']+"/faxes/"+file_name
             os.remove(dir)
-        except:
+        except Exception, e:
             return "Error deleting fax."
         return "Deleted fax."
 
@@ -1665,7 +1592,14 @@ class PbxController(BaseController):
 
         try:
             delete_fax_ext(request.params['name'])
-        except:
+            transaction.commit()
+
+        except IntegrityError, e:
+            transaction.abort()
+            return "Error: You must first delete routes still pointing to this fax."
+
+        except Exception, e:
+            transaction.abort()
             return "Error deleting fax extension."
 
         return  "Successfully deleted fax extension."
@@ -1685,8 +1619,9 @@ class PbxController(BaseController):
                 items.append({'id': tod.id, 'name': tod.name, 'day_start': tod.day_start, 'day_end': tod.day_end, 'time_start': tod.time_start[1:len(tod.time_start)-3], 'time_end': tod.time_end[1:len(tod.time_end)-3],
                               'match_route_id': tod.match_route_id, 'nomatch_route_id': tod.nomatch_route_id, 'match_name': route_match[1]+': '+route_match[2],
                               'match_id': route_match[0], 'nomatch_name': route_nomatch[1]+': '+route_nomatch[2], 'nomatch_id': route_nomatch[0]})
-            db.remove()
+
             return {'identifier': 'id', 'label': 'extension', 'items': items}
+
         except Exception, e:
             return {'identifier': 'id', 'label': 'extension', 'items': [], 'is_error': True, 'messages': str(e)}
 
@@ -1708,7 +1643,6 @@ class PbxController(BaseController):
 
             db.add(time_of_day_route)
             db.flush()
-            db.commit()
 
             route = PbxRoute()
             route.context = session['context']
@@ -1721,13 +1655,12 @@ class PbxController(BaseController):
             route.pbx_to_id = time_of_day_route.id
 
             db.add(route)
-            db.flush()
-            db.commit()
+            transaction.commit()
 
         except validators.Invalid, error:
+            transaction.abort()
             return 'Error: %s' % error
 
-        db.remove()
         return "Successfully added time of day route."
 
     @authorize(logged_in)
@@ -1764,11 +1697,10 @@ class PbxController(BaseController):
             tod.match_route_id = request.params.get('match_route_id')
             tod.nomatch_route_id = request.params.get('nomatch_route_id')
 
-            db.commit(); db.flush()
-            db.remove()
+            transaction.commit()
 
         except validators.Invalid, error:
-            db.remove()
+            transaction.abort()
             return 'Error: %s' % error
 
         return "Successfully updated time of day route."
@@ -1779,7 +1711,14 @@ class PbxController(BaseController):
         try:
             t = PbxTODRoute.query.filter(PbxTODRoute.id==request.params['id']).first()
             delete_tod(t.name)
+            transaction.commit()
+
+        except IntegrityError, e:
+            transaction.abort()
+            return "Error: You must first delete routes still pointing to Time of Day Route."
+
         except:
+            transaction.abort()
             return "Error deleting Time of Day Route"
 
         return  "Successfully deleted Time of Day Route."
@@ -1808,8 +1747,6 @@ class PbxController(BaseController):
             for i in os.listdir(dir):
                 fo = generateFileObject(i, "",  dir)
                 items.append({'id': '1,'+fo["name"], 'name': 'Recording: '+fo["name"] , 'data': fo["path"], 'type': 1, 'real_id': ""})
-
-            db.remove()
         except:
             pass
 
@@ -1828,10 +1765,8 @@ class PbxController(BaseController):
             dir = fs_vm_dir+session['context']+"/recordings/"+request.params['name']
             os.remove(dir)
         except:
-            db.remove()
             return "Error deleting recording."
 
-        db.remove()
         return "Deleted recording."
 
     @authorize(logged_in)
@@ -1878,8 +1813,6 @@ class PbxController(BaseController):
             for conf in PbxConferenceBridge.query.filter_by(context=session['context']).all():
                 items.append({'id': conf.id, 'extension': conf.extension, 'pin': conf.pin})
 
-            db.remove()
-
             return {'identifier': 'id', 'label': 'extension', 'items': items}
 
         except Exception, e:
@@ -1899,7 +1832,6 @@ class PbxController(BaseController):
 
             db.add(conference_bridge)
             db.flush()
-            db.commit()
 
             route = PbxRoute()
             route.context = session['context']
@@ -1912,12 +1844,10 @@ class PbxController(BaseController):
             route.pbx_to_id = conference_bridge.id
 
             db.add(route)
-            db.flush()
-            db.commit()
-            db.remove()
+            transaction.commit()
 
         except validators.Invalid, error:
-            db.remove()
+            transaction.abort()
             return 'Validation Error: %s' % error
 
         return "Successfully added conference bridge."
@@ -1928,6 +1858,7 @@ class PbxController(BaseController):
 
         try:
             delete_conf(request.params['extension'])
+            transaction.commit()
         except:
             return "Error deleting conference bridge."
 
@@ -1942,8 +1873,6 @@ class PbxController(BaseController):
                 route = db.query(PbxRoute.id, PbxRouteType.name, PbxRoute.name)\
                             .join(PbxRouteType).filter(PbxRoute.context==session['context']).filter(PbxRoute.id==cid.pbx_route_id).first()
                 items.append({'id': cid.id, 'cid_number': cid.cid_number, 'pbx_route_id': cid.pbx_route_id, 'pbx_route_name': route[1]+': '+route[2]})
-
-            db.remove()
 
             return {'identifier': 'id', 'label': 'cid_number', 'items': items}
 
@@ -1962,14 +1891,12 @@ class PbxController(BaseController):
             cid.domain = session['context']
 
             db.add(cid)
-            db.flush()
-            db.commit()
+            transaction.commit()
 
         except validators.Invalid, error:
-            db.remove()
+            transaction.abort()
             return 'Validation Error: %s' % error
 
-        db.remove()
         return "Successfully added Caller ID Route."
 
     @restrict("GET")
@@ -1978,7 +1905,9 @@ class PbxController(BaseController):
 
         try:
             delete_cid(request.params['cid_number'])
+            transaction.commit()
         except:
+            transaction.abort()
             return "Error deleting CallerID Route."
 
         return  "Successfully deleted CallerID route."
@@ -1991,11 +1920,10 @@ class PbxController(BaseController):
             for cid in PbxBlacklistedNumber.query.filter_by(context=session['context']).all():
                 items.append({'id': cid.id, 'cid_number': cid.cid_number})
 
-            db.remove()
-
             return {'identifier': 'id', 'label': 'cid_number', 'items': items}
 
         except Exception, e:
+            transaction.abort()
             return {'identifier': 'id', 'label': 'cid_number', 'items': [], 'is_error': True, 'messages': str(e)}
 
     @authorize(logged_in)
@@ -2009,14 +1937,12 @@ class PbxController(BaseController):
             black_listed.domain = session['context']
 
             db.add(black_listed)
-            db.flush()
-            db.commit();
+            transaction.commit()
 
         except validators.Invalid, error:
-            db.remove()
+            transaction.abort()
             return 'Validation Error: %s' % error
 
-        db.remove()
         return "Successfully added to blacklist."
 
     @restrict("GET")
@@ -2025,7 +1951,9 @@ class PbxController(BaseController):
 
         try:
             del_blacklist(request.params['cid_number'])
+            transaction.commit()
         except:
+            transaction.abort()
             return "Error deleting blacklisted number."
 
         return  "Successfully deleted blacklisted number."
@@ -2035,10 +1963,8 @@ class PbxController(BaseController):
     def tts(self):
         items=[]
         try:
-            for test_to_speech in PbxTTS.query.filter_by(context=session['context']).all():
-                items.append({'id': test_to_speech.id, 'name': test_to_speech.name, 'text': test_to_speech.text})
-
-            db.remove()
+            for text_to_speech in PbxTTS.query.filter_by(context=session['context']).all():
+                items.append({'id': text_to_speech.id, 'name': text_to_speech.name, 'text': text_to_speech.text})
 
             return {'identifier': 'id', 'label': 'name', 'items': items}
 
@@ -2050,22 +1976,20 @@ class PbxController(BaseController):
         schema = TTSForm()
         try:
             form_result = schema.to_python(request.params)
-            test_to_speech = PbxTTS()
-            test_to_speech.name = form_result.get('name')
-            test_to_speech.text = form_result.get('tts_text')
-            test_to_speech.context = session['context']
-            test_to_speech.domain = session['context']
-            test_to_speech.voice = u'Allison'
+            text_to_speech = PbxTTS()
+            text_to_speech.name = form_result.get('name')
+            text_to_speech.text = form_result.get('tts_text')
+            text_to_speech.context = session['context']
+            text_to_speech.domain = session['context']
+            text_to_speech.voice = u'Allison'
 
-            db.add(test_to_speech)
-            db.flush()
-            db.commit()
+            db.add(text_to_speech)
+            transaction.commit()
 
         except validators.Invalid, error:
-            db.remove()
+            transaction.abort()
             return 'Validation Error: %s' % error
 
-        db.remove()
         return "Successfully added Text to Speech entry."
 
     @authorize(logged_in)
@@ -2075,16 +1999,16 @@ class PbxController(BaseController):
             w = loads(urllib.unquote_plus(request.params.get("data")))
 
             for i in w['modified']:
-                test_to_speech = PbxTTS.query.filter_by(id=i['id']).filter_by(context=session['context']).first()
-                test_to_speech.name = i['name'].strip()
-                test_to_speech.text = i['text'].strip()
+                text_to_speech = PbxTTS.query.filter_by(id=i['id']).filter_by(context=session['context']).first()
+                text_to_speech.name = i['name'].strip()
+                text_to_speech.text = i['text'].strip()
 
-                db.commit()
                 db.flush()
-                db.commit()
+
+            transaction.commit()
 
         except DataInputError, error:
-            db.remove()
+            transaction.abort()
             return 'Error: %s' % error
 
         return "Successfully updated TTS entry."
@@ -2092,7 +2016,10 @@ class PbxController(BaseController):
     @restrict("GET")
     @authorize(logged_in)
     def del_tts(self, **kw):
-        return  delete_tts(request.params['name'])
+        delete_tts(request.params['name'])
+        transaction.commit()
+
+        return "Successfully deleted text to speech: %s" % str(request.params['name'])
 
     @authorize(logged_in)
     @jsonify
@@ -2101,8 +2028,6 @@ class PbxController(BaseController):
         try:
             for ivr in PbxIVR.query.filter_by(context=session['context']).all():
                 items.append({'id': ivr.id, 'name': ivr.name})
-
-            db.remove()
 
             return {'identifier': 'id', 'label': 'name', 'items': items}
 
@@ -2121,8 +2046,6 @@ class PbxController(BaseController):
 
                 items.append({'id': ivr.id, 'name': ivr.name,'timeout': ivr.timeout, 'direct_dial': ivr.direct_dial, 'data': ivr.data,\
                               'audio_name': str(ivr.audio_type)+','+str(ivr.data), 'timeout_destination': ivr.timeout_destination, 'options': options})
-
-            db.remove()
 
             return {'identifier': 'id', 'label': 'name', 'items': items}
 
@@ -2152,7 +2075,6 @@ class PbxController(BaseController):
 
             db.add(ivr)
             db.flush()
-            db.commit()
 
             if len(form_result.get('option_1'))>0:
                 ivr_option = PbxIVROption()
@@ -2162,7 +2084,6 @@ class PbxController(BaseController):
 
                 db.add(ivr_option)
                 db.flush()
-                db.commit()
 
             if len(form_result.get('option_2'))>0:
                 ivr_option = PbxIVROption()
@@ -2172,7 +2093,6 @@ class PbxController(BaseController):
 
                 db.add(ivr_option)
                 db.flush()
-                db.commit()
 
             if len(form_result.get('option_3'))>0:
                 ivr_option = PbxIVROption()
@@ -2182,7 +2102,6 @@ class PbxController(BaseController):
 
                 db.add(ivr_option)
                 db.flush()
-                db.commit()
 
             if len(form_result.get('option_4'))>0:
                 ivr_option = PbxIVROption()
@@ -2192,7 +2111,6 @@ class PbxController(BaseController):
 
                 db.add(ivr_option)
                 db.flush()
-                db.commit()
 
             if len(form_result.get('option_5'))>0:
                 ivr_option = PbxIVROption()
@@ -2202,7 +2120,6 @@ class PbxController(BaseController):
 
                 db.add(ivr_option)
                 db.flush()
-                db.commit()
 
             if len(form_result.get('option_6'))>0:
                 ivr_option = PbxIVROption()
@@ -2212,7 +2129,6 @@ class PbxController(BaseController):
 
                 db.add(ivr_option)
                 db.flush()
-                db.commit()
 
             if len(form_result.get('option_7'))>0:
                 ivr_option = PbxIVROption()
@@ -2222,7 +2138,6 @@ class PbxController(BaseController):
 
                 db.add(ivr_option)
                 db.flush()
-                db.commit()
 
             if len(form_result.get('option_8'))>0:
                 ivr_option = PbxIVROption()
@@ -2232,7 +2147,6 @@ class PbxController(BaseController):
 
                 db.add(ivr_option)
                 db.flush()
-                db.commit()
 
             if len(form_result.get('option_9'))>0:
                 ivr_option = PbxIVROption()
@@ -2242,7 +2156,6 @@ class PbxController(BaseController):
 
                 db.add(ivr_option)
                 db.flush()
-                db.commit()
 
             if len(form_result.get('option_0'))>0:
                 ivr_option = PbxIVROption()
@@ -2252,7 +2165,6 @@ class PbxController(BaseController):
 
                 db.add(ivr_option)
                 db.flush()
-                db.commit()
 
             route = PbxRoute()
             route.context = session['context']
@@ -2265,14 +2177,12 @@ class PbxController(BaseController):
             route.pbx_to_id = ivr.id
 
             db.add(route)
-            db.flush()
-            db.commit()
-            db.remove()
+            transaction.commit()
 
             return "Successfully added IVR."
 
         except validators.Invalid, error:
-            db.remove()
+            transaction.abort()
             return 'Validation Error: Please correct form inputs and resubmit.'
 
     @authorize(logged_in)
@@ -2281,7 +2191,6 @@ class PbxController(BaseController):
         try:
             form_result = schema.to_python(request.params)
             ivr = PbxIVR.query.filter_by(id=form_result.get('ivr_id')).filter_by(context=session['context']).first()
-
             ivr.name = form_result.get('ivr_name')
             ivr.audio_type = form_result.get('audio_name').split(",")[0].strip()
             ivr.data = form_result.get('audio_name').split(",")[1].strip()
@@ -2296,11 +2205,9 @@ class PbxController(BaseController):
                 ivr.direct_dial=False
 
             db.flush()
-            db.commit();
 
             PbxIVROption.query.filter_by(pbx_ivr_id=ivr.id).delete()
             db.flush()
-            db.commit()
 
             if len(form_result.get('option_1'))>0:
                 ivr_option = PbxIVROption()
@@ -2310,7 +2217,6 @@ class PbxController(BaseController):
 
                 db.add(ivr_option)
                 db.flush()
-                db.commit()
 
             if len(form_result.get('option_2'))>0:
                 ivr_option = PbxIVROption()
@@ -2320,7 +2226,6 @@ class PbxController(BaseController):
 
                 db.add(ivr_option)
                 db.flush()
-                db.commit()
 
             if len(form_result.get('option_3'))>0:
                 ivr_option = PbxIVROption()
@@ -2330,7 +2235,6 @@ class PbxController(BaseController):
 
                 db.add(ivr_option)
                 db.flush()
-                db.commit()
 
             if len(form_result.get('option_4'))>0:
                 ivr_option = PbxIVROption()
@@ -2340,7 +2244,6 @@ class PbxController(BaseController):
 
                 db.add(ivr_option)
                 db.flush()
-                db.commit()
 
             if len(form_result.get('option_5'))>0:
                 ivr_option = PbxIVROption()
@@ -2350,7 +2253,6 @@ class PbxController(BaseController):
 
                 db.add(ivr_option)
                 db.flush()
-                db.commit()
 
             if len(form_result.get('option_6'))>0:
                 ivr_option = PbxIVROption()
@@ -2360,7 +2262,6 @@ class PbxController(BaseController):
 
                 db.add(ivr_option)
                 db.flush()
-                db.commit()
 
             if len(form_result.get('option_7'))>0:
                 ivr_option = PbxIVROption()
@@ -2370,7 +2271,6 @@ class PbxController(BaseController):
 
                 db.add(ivr_option)
                 db.flush()
-                db.commit()
 
             if len(form_result.get('option_8'))>0:
                 ivr_option = PbxIVROption()
@@ -2380,7 +2280,6 @@ class PbxController(BaseController):
 
                 db.add(ivr_option)
                 db.flush()
-                db.commit()
 
             if len(form_result.get('option_9'))>0:
                 ivr_option = PbxIVROption()
@@ -2390,7 +2289,6 @@ class PbxController(BaseController):
 
                 db.add(ivr_option)
                 db.flush()
-                db.commit()
 
             if len(form_result.get('option_0'))>0:
                 ivr_option = PbxIVROption()
@@ -2400,19 +2298,16 @@ class PbxController(BaseController):
 
                 db.add(ivr_option)
                 db.flush()
-                db.commit()
 
             route = PbxRoute.query.filter_by(pbx_route_type_id=5, context=session['context'], pbx_to_id=ivr.id).first()
             route.name = form_result.get('ivr_name')
             route.voicemail_ext = form_result.get('ivr_name')
-            db.flush()
-            db.commit()
+            transaction.commit()
 
         except validators.Invalid, error:
-            db.remove()
+            transaction.abort()
             return 'Validation Error: Please correct form inputs and resubmit.'
 
-        db.remove()
         return "Successfully edited IVR."
 
     @authorize(logged_in)
@@ -2429,19 +2324,20 @@ class PbxController(BaseController):
                     filter(PbxRoute.pbx_route_type_id==5).filter(PbxRoute.pbx_to_id==int(i['id'])).first()
                 route.name = i['name']
 
-                db.flush()
-                db.commit()
-                db.remove()
+                transaction.commit()
 
                 return "Successfully updated IVR."
 
         except Exception, e:
-            return 'Error: %e' %e
+            transaction.abort()
+            return 'Error: %s' % str(e)
 
     @restrict("GET")
     @authorize(logged_in)
     def del_ivr(self, **kw):
-        return  delete_ivr(request.params['name'])
+        msg = delete_ivr(request.params['name'])
+        transaction.commit()
+        return msg
 
     @authorize(logged_in)
     @jsonify
@@ -2457,12 +2353,12 @@ class PbxController(BaseController):
             os.makedirs(dir)
 
         try:
-            for test_to_speech in PbxTTS.query.filter_by(context=session['context']).all():
-                items.append({'id': '2,'+str(test_to_speech.id), 'name': 'TTS: '+ test_to_speech.name, 'data': test_to_speech.text, 'type': 2, 'real_id': test_to_speech.id})
+            for text_to_speech in PbxTTS.query.filter_by(context=session['context']).all():
+                items.append({'id': '2,'+str(text_to_speech.id), 'name': 'TTS: '+ text_to_speech.name, 'data': text_to_speech.text, 'type': 2, 'real_id': text_to_speech.id})
 
             return {'identifier': 'id', 'label': 'name', 'items': items}
 
-        except Exceptoin, e:
+        except Exception, e:
             return {'identifier': 'id', 'label': 'name', 'items': [], 'is_error': True, 'messages': str(e)}
 
     @authorize(logged_in)
@@ -2515,7 +2411,6 @@ class PbxController(BaseController):
                 path = []
                 items.append({'name': name, 'to': voice_mail.username, 'received': received, 'path': fpath, 'size': voice_mail.message_len})
 
-            db.remove()
             return {'identifier': 'path', 'label': 'name', 'items': items}
 
         except Exception, e:
@@ -2548,7 +2443,6 @@ class PbxController(BaseController):
                 items.append({'id': cdr.id, 'caller_id_name': cdr.caller_id_name, 'caller_id_number': num,
                               'destination_number': cdr.destination_number, 'start_stamp': fix_date(cdr.start_stamp), 'answer_stamp': fix_date(cdr.answer_stamp),
                               'end_stamp': fix_date(cdr.end_stamp), 'duration': cdr.duration, 'billsec': cdr.billsec, 'hangup_cause': cdr.hangup_cause})
-            db.remove()
 
             return {'identifier': 'id', 'label': 'caller_id_number', 'items': items}
 
@@ -2578,7 +2472,6 @@ class PbxController(BaseController):
                               'destination_number': row.destination_number, 'start_stamp': fix_date(row.start_stamp), 'answer_stamp': fix_date(row.answer_stamp),
                               'end_stamp': fix_date(row.end_stamp), 'duration': row.duration, 'billsec':row.billsec, 'hangup_cause': row.hangup_cause})
 
-            db.remove()
             return {'identifier': 'id', 'label': 'caller_id_number', 'items': items}
 
         except Exception,e:
@@ -2623,12 +2516,12 @@ class PbxController(BaseController):
                               'from': request.params.get("sdate", 'TIMESTAMP') if request.params.get("sdate", 'TIMESTAMP') != 'TIMESTAMP' else datetime.today().strftime("%m/%d/%Y"),
                               'to': request.params.get("edate", 'CURRENT_TIMESTAMP') if request.params.get("edate", 'CURRENT_TIMESTAMP') != 'CURRENT_TIMESTAMP' else datetime.today().strftime("%m/%d/%Y")})
 
-            db.remove()
             return {'identifier': 'id', 'label': 'agent', 'items': items}
 
         except Exception, e:
             return {'identifier': 'id', 'label': 'agent', 'items': [], 'is_error': True, 'messages': str(e)}
 
+    @authorize(logged_in)
     @jsonify
     def cdr_ext(self):
         items=[]
@@ -2659,9 +2552,9 @@ class PbxController(BaseController):
                               'destination_number': row.destination_number, 'start_stamp': fix_date(row.start_stamp), 'answer_stamp': fix_date(row.answer_stamp),
                               'end_stamp': fix_date(row.end_stamp), 'duration': row.duration, 'billsec':row.billsec, 'hangup_cause': row.hangup_cause})
 
-            db.remove()
             return {'identifier': 'id', 'label': 'caller_id_number', 'items': items}
-        except  e:
+
+        except Exception, e:
             return {'identifier': 'id', 'label': 'caller_id_number', 'items': [], 'is_error': True, 'messages': str(e)}
 
     @authorize(logged_in)
@@ -2695,8 +2588,6 @@ class PbxController(BaseController):
                           'destination_number': row.destination_number, 'start_stamp': fix_date(row.start_stamp), 'answer_stamp': fix_date(row.answer_stamp),
                           'end_stamp': fix_date(row.end_stamp), 'duration': row.duration, 'billsec':row.billsec, 'hangup_cause': row.hangup_cause})
 
-        db.remove()
-
         f = open("/tmp/Report_ext"+ext+".csv", "wb+")
         csv_file = csv.writer(f)
 
@@ -2717,22 +2608,22 @@ class PbxController(BaseController):
 
         return response(request.environ, self.start_response)
 
-
     @authorize(logged_in)
+    @jsonify
     def customer_by_id(self, **kw):
         items=[]
-        row = Customer.query.filter(Customer.id==session['customer_id']).first()
-        items.append({'id': row.id, 'name': row.name, 'email': row.email, 'address': row.address, 'address_2': row.address_2,
-                      'city': row.city, 'state': row.state, 'zip': row.zip,
-                      'tel': row.tel, 'url': row.url, 'active': row.active, 'context': row.context, 'has_crm': row.has_crm,
-                      'has_call_center': row.has_call_center, 'contact_name': row.contact_name, 'contact_phone': row.contact_phone,
-                      'contact_mobile': row.contact_mobile, 'contact_title': row.contact_title, 'contact_email': row.contact_email, 'notes': row.notes})
+        try:
+            customer = Customer.query.filter(Customer.id==session['customer_id']).first()
+            items.append({'id': customer.id, 'name': customer.name, 'email': customer.email, 'address': customer.address, 'address_2': customer.address_2,
+                          'city': customer.city, 'state': customer.state, 'zip': customer.zip,
+                          'tel': customer.tel, 'url': customer.url, 'active': customer.active, 'context': customer.context, 'has_crm': customer.has_crm,
+                          'has_call_center': customer.has_call_center, 'contact_name': customer.contact_name, 'contact_phone': customer.contact_phone,
+                          'contact_mobile': customer.contact_mobile, 'contact_title': customer.contact_title, 'contact_email': customer.contact_email, 'notes': row.notes})
 
-        out = dict({'identifier': 'id', 'label': 'name', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
+            return {'identifier': 'id', 'label': 'name', 'items': items}
 
-        return response(request.environ, self.start_response)
+        except Exception, e:
+            return {'identifier': 'id', 'label': 'name', 'items': items, 'is_error': True, 'message': str(e)}
 
     @authorize(logged_in)
     def edit_customer(self):
@@ -2754,80 +2645,83 @@ class PbxController(BaseController):
             customer.contact_title = form_result.get('contact_title')
             customer.contact_email = form_result.get('contact_email')
 
-            db.commit(); db.flush()
+            transaction.commit()
 
         except validators.Invalid, error:
-            db.remove()
+            transaction.abort()
             return 'Error: %s' % error
 
         return "Successfully edited customer."
 
-    @jsonify
     @authorize(logged_in)
+    @jsonify
     def avail_findme_endpoints(self):
         items=[]
-        for row in PbxEndpoint.query.filter_by(user_context=session['context']).order_by(PbxEndpoint.auth_id).all():
-            if PbxFindMeRoute.query.filter_by(pbx_endpoint_id=row.id).count()>0:
-                continue
-            items.append({'id': row.id, 'auth_id': row.auth_id})
-        db.remove()
+        try:
+            for endpoint in PbxEndpoint.query.filter_by(user_context=session['context']).order_by(PbxEndpoint.auth_id).all():
+                if PbxFindMeRoute.query.filter_by(pbx_endpoint_id=endpoint.id).count()>0:
+                    continue
+                items.append({'id': endpoint.id, 'auth_id': endpoint.auth_id})
 
-        out = dict({'identifier': 'id', 'label': 'auth_id', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
+            return {'identifier': 'id', 'label': 'auth_id', 'items': items}
 
-        return response(request.environ, self.start_response)
+        except Exception, e:
+            return {'identifier': 'id', 'label': 'auth_id', 'items': items, 'is_error': True, 'message': str(e)}
 
     @authorize(logged_in)
+    @jsonify
     def inuse_findme_endpoints(self):
         items=[]
-        for row in db.query(PbxFindMeRoute.id, PbxEndpoint.auth_id)\
-        .select_from(join(PbxFindMeRoute, PbxEndpoint, PbxEndpoint.pbx_find_me))\
-        .filter(PbxEndpoint.user_context==session['context']).all():
-            items.append({'id': row.id, 'auth_id': row.auth_id})
+        try:
+            for find_me_route in db.query(PbxFindMeRoute.id, PbxEndpoint.auth_id)\
+                    .select_from(join(PbxFindMeRoute, PbxEndpoint, PbxEndpoint.pbx_find_me))\
+                    .filter(PbxEndpoint.user_context==session['context']).all():
+                items.append({'id': find_me_route.id, 'auth_id': find_me_route.auth_id})
 
-        db.remove()
+            return {'identifier': 'id', 'label': 'auth_id', 'items': items}
 
-        out = dict({'identifier': 'id', 'label': 'auth_id', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
-
-        return response(request.environ, self.start_response)
+        except Exception, e:
+            return {'identifier': 'id', 'label': 'auth_id', 'items': items, 'is_error': True, 'message': str(e)}
 
     @authorize(logged_in)
+    @jsonify
     def routes(self):
         items=[]
-        for row in db.execute("SELECT sr.id, sr.name AS data, sr.pbx_to_id AS to_id, sr.pbx_route_type_id AS type_id, srt.name|| ': ' ||sr.name AS name "
-                              "FROM pbx_routes sr "
-                              "INNER JOIN pbx_route_types srt ON sr.pbx_route_type_id = srt.id "
-                              "WHERE sr.context = :context", {'context': session['context']}):
-            items.append({'id': row.id, 'data': row.data, 'to_id': row.to_id, 'type_id': row.type_id, 'name': row.name})
-        db.remove()
+        try:
+            for route in db.execute("SELECT sr.id, sr.name AS data, sr.pbx_to_id AS to_id, sr.pbx_route_type_id AS type_id, srt.name|| ': ' ||sr.name AS name "
+                                    "FROM pbx_routes sr "
+                                    "INNER JOIN pbx_route_types srt ON sr.pbx_route_type_id = srt.id "
+                                    "WHERE sr.context = :context", {'context': session['context']}):
+                items.append({'id': route.id, 'data': route.data, 'to_id': route.to_id, 'type_id': route.type_id, 'name': route.name})
 
-        out = dict({'identifier': 'id', 'label': 'name', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
+            return {'identifier': 'id', 'label': 'name', 'items': items}
 
-        return response(request.environ, self.start_response)
+        except Exception, e:
+            return {'identifier': 'id', 'label': 'name', 'items': items, 'is_error': True, 'message': str(e)}
 
-    @jsonify
+
     @authorize(logged_in)
+    @jsonify
     def route_id_names(self):
         return db.query(PbxRoute.name, PbxRoute.id).filter_by(context=session['context']).all()
 
-    @jsonify
     @authorize(logged_in)
+    @jsonify
     def route_ids(self):
         names=[]
         ids=[]
+        try:
+            for route in db.query(PbxRoute.name, PbxRoute.id).filter_by(context=session['context']).order_by(PbxRoute.name).all():
+                names.append(route.name)
+                ids.append(route.id)
 
-        for r in db.query(PbxRoute.name, PbxRoute.id).filter_by(context=session['context']).order_by(PbxRoute.name).all():
-            names.append(r.name)
-            ids.append(r.id)
+            return {'names': names, 'ids': ids}
 
-        return dict({'names': names, 'ids': ids})
+        except Exception, e:
+            return {'names': names, 'ids': ids, 'is_error': True, 'message': str(e)}
 
     @authorize(logged_in)
+    @jsonify
     def call_stats(self):
         items=[]
         volume=[]
@@ -2836,127 +2730,124 @@ class PbxController(BaseController):
         maximumt = 0
         minimumv = 0
         maximumv = 10
-        for row in User.query.filter(User.customer_id==session['customer_id']).all():
-            if not len(row.portal_extension):
-                continue
-            else:
-                extension = row.portal_extension
-            vol =  get_volume(extension)
-            tt = get_talk_time(extension)
-            if vol > maximumv:
-                maximumv = vol
-            if tt > maximumt:
-                maximumt = tt
-            volume.append({'x': row.first_name+' '+row.last_name, 'y': vol})
-            ttime.append({'x': row.first_name+' '+row.last_name, 'y': tt})
-            items.append({'id': row.id, 'extension': extension, 'name': row.first_name+' '+row.last_name, 'volume': vol, 'talk_time': tt})
 
-        db.remove()
+        try:
+            for user in User.query.filter(User.customer_id==session['customer_id']).all():
+                if not len(user.portal_extension):
+                    continue
+                else:
+                    extension = user.portal_extension
+                vol =  get_volume(extension)
+                tt = get_talk_time(extension)
+                if vol > maximumv:
+                    maximumv = vol
+                if tt > maximumt:
+                    maximumt = tt
+                volume.append({'x': user.first_name+' '+user.last_name, 'y': vol})
+                ttime.append({'x': user.first_name+' '+user.last_name, 'y': tt})
+                items.append({'id': user.id, 'extension': extension, 'name': user.first_name+' '+user.last_name, 'volume': vol, 'talk_time': tt})
 
-        out = dict({'identifier': 'id', 'label': 'name', 'items': items, 'mint': minimumt,
-                    'maxt': maximumt, 'minv': minimumv, 'maxv': maximumv, 'volume': volume, 'talk_time': ttime})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
+            return {'identifier': 'id', 'label': 'name', 'items': items, 'mint': minimumt,
+                    'maxt': maximumt, 'minv': minimumv, 'maxv': maximumv, 'volume': volume, 'talk_time': ttime}
 
-        return response(request.environ, self.start_response)
+        except Exception, e:
+            return {'identifier': 'id', 'label': 'name', 'items': items, 'mint': minimumt,
+                    'maxt': maximumt, 'minv': minimumv, 'maxv': maximumv, 'volume': volume, 'talk_time': ttime, 'is_error': True, 'message': str(e)}
+
+#    @authorize(logged_in)
+#    def get_find_me_edit(self, id, **kw):
+#        c.findme = db.query(PbxFindMeRoute.id,PbxFindMeRoute.ring_strategy, PbxFindMeRoute.destination_1, PbxFindMeRoute.destination_2,\
+#            PbxFindMeRoute.destination_3, PbxFindMeRoute.destination_4, PbxEndpoint.auth_id)\
+#                .select_from(join(PbxFindMeRoute, PbxEndpoint, PbxEndpoint.pbx_find_me))\
+#                .filter(PbxEndpoint.user_context==session['context'])\
+#                .filter_by(id=id).first()
+#        db.remove()
+#        return render('find_me_edit.html')
+#
+#    @authorize(credential('pbx_admin'))
+#    def permissions(self, id, **kw):
+#        c.findme = db.query(PbxFindMeRoute.id,PbxFindMeRoute.ring_strategy, PbxFindMeRoute.destination_1, PbxFindMeRoute.destination_2,\
+#            PbxFindMeRoute.destination_3, PbxFindMeRoute.destination_4, PbxEndpoint.auth_id)\
+#                .select_from(join(PbxFindMeRoute, PbxEndpoint, PbxEndpoint.pbx_find_me))\
+#                .filter(PbxEndpoint.user_context==session['context'])\
+#                .filter_by(id=id).first()
+#        db.remove()
+#        return render('find_me_edit.html')
 
     @authorize(logged_in)
-    def get_find_me_edit(self, id, **kw):
-        c.findme = db.query(PbxFindMeRoute.id,PbxFindMeRoute.ring_strategy, PbxFindMeRoute.destination_1, PbxFindMeRoute.destination_2,\
-            PbxFindMeRoute.destination_3, PbxFindMeRoute.destination_4, PbxEndpoint.auth_id)\
-                .select_from(join(PbxFindMeRoute, PbxEndpoint, PbxEndpoint.pbx_find_me))\
-                .filter(PbxEndpoint.user_context==session['context'])\
-                .filter_by(id=id).first()
-        db.remove()
-        return render('find_me_edit.html')
-
-    @authorize(credential('pbx_admin'))
-    def permissions(self, id, **kw):
-        c.findme = db.query(PbxFindMeRoute.id,PbxFindMeRoute.ring_strategy, PbxFindMeRoute.destination_1, PbxFindMeRoute.destination_2,\
-            PbxFindMeRoute.destination_3, PbxFindMeRoute.destination_4, PbxEndpoint.auth_id)\
-                .select_from(join(PbxFindMeRoute, PbxEndpoint, PbxEndpoint.pbx_find_me))\
-                .filter(PbxEndpoint.user_context==session['context'])\
-                .filter_by(id=id).first()
-        db.remove()
-        return render('find_me_edit.html')
-
-    @authorize(logged_in)
+    @jsonify
     def names_user_ids(self):
         names=[]
         user_ids=[]
-        for row in User.query.filter_by(customer_id=session['customer_id']).all():
-            names.append(row.first_name+' '+row.last_name)
-            user_ids.append(row.id)
+        try:
+            for user in User.query.filter_by(customer_id=session['customer_id']).all():
+                names.append(user.first_name+' '+user.last_name)
+                user_ids.append(user.id)
 
-        db.remove()
+            return {'names': names, 'user_ids': user_ids}
 
-        out = dict({'names': names, 'user_ids': user_ids})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
-
-        return response(request.environ, self.start_response)
+        except Exception, e:
+            return {'names': names, 'user_ids': user_ids, 'is_error': True, 'message': str(e)}
 
     @authorize(logged_in)
+    @jsonify
     def destinations(self):
         items=[]
-        for row in PbxEndpoint.query.filter_by(user_context=session['context']).all():
-            items.append({'id': row.id, 'ext': row.auth_id})
+        try:
+            for endpoint in PbxEndpoint.query.filter_by(user_context=session['context']).all():
+                items.append({'id': endpoint.id, 'ext': endpoint.auth_id})
 
-        db.remove()
+            return {'identifier': 'ext', 'label': 'ext', 'items': items}
 
-        out = dict({'identifier': 'ext', 'label': 'ext', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
-
-        return response(request.environ, self.start_response)
+        except Exception, e:
+            return {'identifier': 'ext', 'label': 'ext', 'items': items, 'is_error': True, 'message': str(e)}
 
     @authorize(logged_in)
+    @jsonify
     def device_store(self):
         items=[]
-        for row in db.query(PbxDeviceManufacturer.id, PbxDeviceManufacturer.name,  PbxDeviceType.model,
-            PbxDeviceType.id).join(PbxDeviceType).order_by(PbxDeviceManufacturer.name).all():
-            items.append({'id': row[0], 'manufacturer': row[1], 'model': row[2], 'name':  row[1]+ ': '+row[2], 'device_type_id': row[3]})
+        try:
+            for device in db.query(PbxDeviceManufacturer.id, PbxDeviceManufacturer.name,  PbxDeviceType.model,
+                PbxDeviceType.id).join(PbxDeviceType).order_by(PbxDeviceManufacturer.name).all():
+                items.append({'id': device[0], 'manufacturer': device[1], 'model': device[2], 'name':  device[1]+ ': '+device[2], 'device_type_id': device[3]})
 
-        db.remove()
+            return {'identifier': 'device_type_id', 'label': 'name', 'items': items}
 
-        out = dict({'identifier': 'device_type_id', 'label': 'name', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
-
-        return response(request.environ, self.start_response)
+        except Exception, e:
+            return {'identifier': 'device_type_id', 'label': 'name', 'items': items, 'is_error': True, 'message': str(e)}
 
     @authorize(logged_in)
+    @jsonify
     def login_ext(self, id):
         items=[]
-        for row in PbxEndpoint.query.filter_by(user_context=session['context']).\
-        filter_by(user_id=id).order_by(PbxEndpoint.auth_id).all():
-            items.append({'id': row.id, 'extension': row.auth_id})
-        db.remove()
+        try:
+            for endpoint in PbxEndpoint.query.filter_by(user_context=session['context'])\
+                    .filter_by(user_id=id).order_by(PbxEndpoint.auth_id).all():
+                items.append({'id': endpoint.id, 'extension': endpoint.auth_id})
 
-        out = dict({'identifier': 'extension', 'label': 'extension', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
+            return {'identifier': 'extension', 'label': 'extension', 'items': items}
 
-        return response(request.environ, self.start_response)
+        except Exception, e:
+            return {'identifier': 'extension', 'label': 'extension', 'items': items, 'is_error': True, 'message': str(e)}
 
     @authorize(logged_in)
+    @jsonify
     def help(self, id, **kw):
-        help = PbxHelp.query.filter(PbxHelp.category_id==id).first()
+        try:
+            help = PbxHelp.query.filter(PbxHelp.category_id==id).first()
 
-        if help:
-            data = help.data
-        else:
-            data = "No help to display in this category."
+            if help:
+                data = help.data
+            else:
+                data = "No help to display in this category."
 
-        db.remove()
+            return {'help': data}
 
-        out = dict({'help': data})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
-
-        return response(request.environ, self.start_response)
+        except Exception, e:
+            return {'help': data, 'is_error': True, 'message': str(e)}
 
     @authorize(logged_in)
+    @jsonify
     def ext_recordings2(self):
         files = []
 
@@ -2977,19 +2868,16 @@ class PbxController(BaseController):
                 caller = row.caller_id_number[len(row.caller_id_number)-10:]
                 dest = row.destination_number[len(row.destination_number)-10 if len(row.destination_number) > 10 else 0:]
                 files.append({'name': caller, 'dest': dest, 'path': tpath, 'received': received, 'size': fsize, 'extension': ext, 'id': id, 'direction': direction})
+
+            return {'identifier': 'id', 'label': 'name', 'items': files}
+
         except Exception, e:
-            raise
-
-        out = dict({'identifier': 'id', 'label': 'name', 'items': files})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
-
-        return response(request.environ, self.start_response)
+            return {'identifier': 'id', 'label': 'name', 'items': files, 'is_error': True, 'message': str(e)}
 
     @authorize(logged_in)
+    @jsonify
     def ext_recordings(self):
         files = []
-
         dir = fs_vm_dir+session['context']+"/extension-recordings/"
 
         try:
@@ -3007,72 +2895,65 @@ class PbxController(BaseController):
                 caller = row.caller_id_number[len(row.caller_id_number)-10:]
                 dest = row.destination_number[len(row.destination_number)-10 if len(row.destination_number) > 10 else 0:]
                 files.append({'name': caller, 'dest': dest, 'path': tpath, 'received': received, 'size': fsize, 'extension': ext, 'id': id, 'direction': direction})
+
+            return {'identifier': 'id', 'label': 'name', 'items': files}
+
         except Exception, e:
-            raise
-
-        out = dict({'identifier': 'id', 'label': 'name', 'items': files})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
-
-        return response(request.environ, self.start_response)
+            return {'identifier': 'id', 'label': 'name', 'items': files, 'is_error': True, 'message': str(e)}
 
     @authorize(logged_in)
+    @jsonify
     def active_tickets(self):
         items=[]
-        for row in Ticket.query.filter_by(customer_id=session['customer_id']).filter(Ticket.ticket_status_id!=4).all():
-            items.append({'id': row.id, 'customer_id': row.customer_id, 'opened_by': row.opened_by,
-                          'status': row.ticket_status_id, 'priority': row.ticket_priority_id,
-                          'type': row.ticket_type_id, 'created': row.created.strftime("%m/%d/%Y %I:%M:%S %p"),
-                          'expected_resolve_date': row.expected_resolve_date.strftime("%m/%d/%Y %I:%M:%S %p"),
-                          'subject': row.subject, 'description': row.description})
+        try:
+            for ticket in Ticket.query.filter_by(customer_id=session['customer_id']).filter(Ticket.ticket_status_id!=4).all():
+                items.append({'id': ticket.id, 'customer_id': ticket.customer_id, 'opened_by': ticket.opened_by,
+                              'status': ticket.ticket_status_id, 'priority': ticket.ticket_priority_id,
+                              'type': ticket.ticket_type_id, 'created': ticket.created.strftime("%m/%d/%Y %I:%M:%S %p"),
+                              'expected_resolve_date': ticket.expected_resolve_date.strftime("%m/%d/%Y %I:%M:%S %p"),
+                              'subject': ticket.subject, 'description': ticket.description})
 
-        db.remove()
+            return {'identifier': 'id', 'label': 'id', 'items': items}
 
-        out = dict({'identifier': 'id', 'label': 'id', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
-
-        return response(request.environ, self.start_response)
+        except Exception, e:
+            return {'identifier': 'id', 'label': 'id', 'items': items, 'is_error': True, 'message': str(e)}
 
     @authorize(logged_in)
+    @jsonify
     def closed_tickets(self):
         items=[]
-        for row in Ticket.query.filter_by(customer_id=session['customer_id']).filter(Ticket.ticket_status_id==4).all():
-            items.append({'id': row.id, 'customer_id': row.customer_id, 'opened_by': row.opened_by,
-                          'status': row.ticket_status_id, 'priority': row.ticket_priority_id,
-                          'type': row.ticket_type_id, 'created': row.created.strftime("%m/%d/%Y %I:%M:%S %p"),
-                          'expected_resolve_date': row.expected_resolve_date.strftime("%m/%d/%Y %I:%M:%S %p"),
-                          'subject': row.subject, 'description': row.description})
+        try:
+            for ticket in Ticket.query.filter_by(customer_id=session['customer_id']).filter(Ticket.ticket_status_id==4).all():
+                items.append({'id': ticket.id, 'customer_id': ticket.customer_id, 'opened_by': ticket.opened_by,
+                              'status': ticket.ticket_status_id, 'priority': ticket.ticket_priority_id,
+                              'type': ticket.ticket_type_id, 'created': ticket.created.strftime("%m/%d/%Y %I:%M:%S %p"),
+                              'expected_resolve_date': ticket.expected_resolve_date.strftime("%m/%d/%Y %I:%M:%S %p"),
+                              'subject': ticket.subject, 'description': ticket.description})
 
-        db.remove()
+            return {'identifier': 'id', 'label': 'id', 'items': items}
 
-        out = dict({'identifier': 'id', 'label': 'id', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
-
-        return response(request.environ, self.start_response)
-
+        except Exception, e:
+            return {'identifier': 'id', 'label': 'id', 'items': items, 'is_error': True, 'message': str(e)}
 
     @authorize(logged_in)
+    @jsonify
     def internal_tickets(self):
         items=[]
-        for row in Ticket.query.filter_by(customer_id=session['customer_id']).filter(Ticket.ticket_status_id==7).all():
-            items.append({'id': row.id, 'customer_id': row.customer_id, 'opened_by': row.opened_by,
-                          'status': row.ticket_status_id, 'priority': row.ticket_priority_id,
-                          'type': row.ticket_type_id, 'created': row.created.strftime("%m/%d/%Y %I:%M:%S %p"),
-                          'expected_resolve_date': row.expected_resolve_date.strftime("%m/%d/%Y %I:%M:%S %p"),
-                          'subject': row.subject, 'description': row.description})
+        try:
+            for ticket in Ticket.query.filter_by(customer_id=session['customer_id']).filter(Ticket.ticket_status_id==7).all():
+                items.append({'id': ticket.id, 'customer_id': ticket.customer_id, 'opened_by': ticket.opened_by,
+                              'status': ticket.ticket_status_id, 'priority': ticket.ticket_priority_id,
+                              'type': ticket.ticket_type_id, 'created': ticket.created.strftime("%m/%d/%Y %I:%M:%S %p"),
+                              'expected_resolve_date': ticket.expected_resolve_date.strftime("%m/%d/%Y %I:%M:%S %p"),
+                              'subject': ticket.subject, 'description': ticket.description})
 
-        db.remove()
+            return {'identifier': 'id', 'label': 'id', 'items': items}
 
-        out = dict({'identifier': 'id', 'label': 'id', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
-
-        return response(request.environ, self.start_response)
-
+        except Exception, e:
+            return {'identifier': 'id', 'label': 'id', 'items': items, 'is_error': True, 'message': str(e)}
 
     @authorize(logged_in)
+    @jsonify
     def ticket_data(self):
         ticket_status_id =[]
         ticket_status_name =[]
@@ -3096,157 +2977,147 @@ class PbxController(BaseController):
             opened_by_id.append(row.id)
             opened_by_name.append(row.first_name+' '+row.last_name)
 
-        db.remove()
-
-        out = dict({'ticket_status_names': ticket_status_name, 'ticket_status_ids': ticket_status_id,
+        return {'ticket_status_names': ticket_status_name, 'ticket_status_ids': ticket_status_id,
                     'ticket_type_names': ticket_type_name, 'ticket_type_ids': ticket_type_id,
                     'ticket_priority_names': ticket_priority_name, 'ticket_priority_ids': ticket_priority_id,
-                    'opened_by_names': opened_by_name, 'opened_by_ids': opened_by_id})
-
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
-
-        return response(request.environ, self.start_response)
+                    'opened_by_names': opened_by_name, 'opened_by_ids': opened_by_id}
 
     @authorize(logged_in)
+    @jsonify
     def ticket_types(self):
         items=[]
-        for row in TicketType.query.all():
-            items.append({'id': row.id, 'name': row.name, 'description': row.description})
+        try:
+            for ticket_type in TicketType.query.all():
+                items.append({'id': ticket_type.id, 'name': ticket_type.name, 'description': ticket_type.description})
 
-        db.remove()
+            return {'identifier': 'id', 'label': 'name', 'items': items}
 
-        out = dict({'identifier': 'id', 'label': 'name', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
-
-        return response(request.environ, self.start_response)
+        except Exception, e:
+            return {'identifier': 'id', 'label': 'name', 'items': items, 'is_error': True, 'message': str(e)}
 
     @authorize(logged_in)
+    @jsonify
     def ticket_statuses(self):
         items=[]
-        for row in TicketStatus.query.all():
-            items.append({'id': row.id, 'name': row.name, 'description': row.description})
+        try:
+            for ticket_status in TicketStatus.query.all():
+                items.append({'id': ticket_status.id, 'name': ticket_status.name, 'description': ticket_status.description})
 
-        db.remove()
+            return {'identifier': 'id', 'label': 'name', 'items': items}
 
-        out = dict({'identifier': 'id', 'label': 'name', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
-
-        return response(request.environ, self.start_response)
+        except Exception, e:
+            return {'identifier': 'id', 'label': 'name', 'items': items, 'is_error': True, 'message': str(e)}
 
     @authorize(logged_in)
+    @jsonify
     def ticket_priorities(self):
         items=[]
-        for row in TicketPriority.query.all():
-            items.append({'id': row.id, 'name': row.name, 'description': row.description})
+        try:
+            for ticket_priority in TicketPriority.query.all():
+                items.append({'id': ticket_priority.id, 'name': ticket_priority.name, 'description': ticket_priority.description})
 
-        db.remove()
+            return {'identifier': 'id', 'label': 'name', 'items': items}
 
-        out = dict({'identifier': 'id', 'label': 'name', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
-
-        return response(request.environ, self.start_response)
+        except Exception, e:
+            return {'identifier': 'id', 'label': 'name', 'items': items, 'is_error': True, 'message': str(e)}
 
     @authorize(logged_in)
     def ticket_add(self, **kw):
         schema = TicketForm()
         try:
             form_result = schema.to_python(request.params)
-            t = Ticket()
-            t.subject = form_result.get('subject')
-            t.description = form_result.get('description')
-            t.customer_id = session['customer_id']
-            t.opened_by = form_result.get('user_id')
-            t.ticket_status_id = form_result.get('status_id')
-            t.ticket_priority_id = form_result.get('priority_id')
-            t.ticket_type_id = form_result.get('type_id')
-            t.expected_resolution_date = form_result.get('expected_resolution_date')
+            ticket = Ticket()
+            ticket.subject = form_result.get('subject')
+            ticket.description = form_result.get('description')
+            ticket.customer_id = session['customer_id']
+            ticket.opened_by = form_result.get('user_id')
+            ticket.ticket_status_id = form_result.get('status_id')
+            ticket.ticket_priority_id = form_result.get('priority_id')
+            ticket.ticket_type_id = form_result.get('type_id')
+            ticket.expected_resolution_date = form_result.get('expected_resolution_date')
 
-            db.add(t)
-            db.commit(); db.flush()
+            db.add(ticket)
+            transaction.commit()
+
+            return "Successfully added ticket."
 
         except validators.Invalid, error:
-            db.remove()
+            transaction.abort()
             return 'Validation Error: %s' % error
-
-        db.remove()
-        return "Successfully added ticket."
 
     @authorize(logged_in)
     def update_ticket_grid(self, **kw):
 
-        w = loads(urllib.unquote_plus(request.params.get("data")))
+        try:
+            w = loads(urllib.unquote_plus(request.params.get("data")))
 
-        for i in w['modified']:
-            ticket = Ticket.query.filter_by(id=i['id']).first()
-            ticket.ticket_status_id = int(i['status'])
-            ticket.ticket_type_id = int(i['type'])
-            ticket.ticket_priority_id = int(i['priority'])
+            for i in w['modified']:
+                ticket = Ticket.query.filter_by(id=i['id']).first()
+                ticket.ticket_status_id = int(i['status'])
+                ticket.ticket_type_id = int(i['type'])
+                ticket.ticket_priority_id = int(i['priority'])
 
-            db.commit(); db.flush()
-            db.remove()
+                transaction.commit()
 
-        return "Successfully updated ticket."
+            return "Successfully updated ticket."
+        except Exception, e:
+            transaction.abort()
+            return "Failed updating ticket."
 
-    @authorize(logged_in)
+    @jsonify
     def ticket_view_by_id(self, id):
         items=[]
         notes=[]
-        for row in Ticket.query.filter_by(customer_id=session['customer_id']).filter(Ticket.id==id).all():
-            for note in TicketNote.query.filter_by(ticket_id=row.id).all():
-                notes.append({'id': note.id, 'ticket_id': note.ticket_id, 'user_id': note.user_id,
+        try:
+            for ticket in Ticket.query.filter_by(customer_id=session['customer_id']).filter(Ticket.id==id).all():
+                for note in TicketNote.query.filter_by(ticket_id=ticket.id).all():
+                    notes.append({'id': note.id, 'ticket_id': note.ticket_id, 'user_id': note.user_id,
+                                  'created': note.created.strftime("%m/%d/%Y %I:%M:%S %p"), 'subject': note.subject,
+                                  'description': note.description})
+
+                items.append({'id': ticket.id, 'customer_id': ticket.customer_id, 'opened_by': ticket.opened_by,
+                              'status': ticket.ticket_status_id, 'priority': ticket.ticket_priority_id,
+                              'type': ticket.ticket_type_id, 'created': ticket.created.strftime("%m/%d/%Y %I:%M:%S %p"),
+                              'expected_resolve_date': ticket.expected_resolve_date.strftime("%m/%d/%Y %I:%M:%S %p"),
+                              'subject': ticket.subject, 'description': ticket.description, 'notes': notes})
+
+
+            return {'identifier': 'id', 'label': 'id', 'items': items}
+
+        except Exception, e:
+            return {'identifier': 'id', 'label': 'id', 'items': items, 'is_error': True, 'message': str(e)}
+
+    @authorize(logged_in)
+    @jsonify
+    def ticket_notes_by_id(self, id):
+        items=[]
+        try:
+            for note in TicketNote.query.filter_by(ticket_id=id).all():
+                items.append({'id': note.id, 'ticket_id': note.ticket_id, 'user_id': note.user_id,
                               'created': note.created.strftime("%m/%d/%Y %I:%M:%S %p"), 'subject': note.subject,
                               'description': note.description})
 
+            return {'identifier': 'id', 'label': 'subject', 'items': items}
 
-
-            items.append({'id': row.id, 'customer_id': row.customer_id, 'opened_by': row.opened_by,
-                          'status': row.ticket_status_id, 'priority': row.ticket_priority_id,
-                          'type': row.ticket_type_id, 'created': row.created.strftime("%m/%d/%Y %I:%M:%S %p"),
-                          'expected_resolve_date': row.expected_resolve_date.strftime("%m/%d/%Y %I:%M:%S %p"),
-                          'subject': row.subject, 'description': row.description, 'notes': notes})
-
-
-        out = dict({'identifier': 'id', 'label': 'id', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
-
-        return response(request.environ, self.start_response)
-
-    @authorize(logged_in)
-    def ticket_notes_by_id(self, id):
-        items=[]
-        for note in TicketNote.query.filter_by(ticket_id=id).all():
-            items.append({'id': note.id, 'ticket_id': note.ticket_id, 'user_id': note.user_id,
-                          'created': note.created.strftime("%m/%d/%Y %I:%M:%S %p"), 'subject': note.subject,
-                          'description': note.description})
-
-        out = dict({'identifier': 'id', 'label': 'subject', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
-
-        return response(request.environ, self.start_response)
+        except Exception, e:
+            return {'identifier': 'id', 'label': 'subject', 'items': items, 'is_error': True, 'message': str(e)}
 
     @authorize(logged_in)
     def add_ticket_note(self, **kw):
         schema = TicketNoteForm()
         try:
             form_result = schema.to_python(request.params)
-            t = TicketNote()
-            t.ticket_id = form_result.get('ticket_note_id')
-            t.subject = form_result.get('ticket_subject')
-            t.description = form_result.get('ticket_note')
-            t.user_id = form_result.get('user_id')
+            ticket = TicketNote()
+            ticket.ticket_id = form_result.get('ticket_note_id')
+            ticket.subject = form_result.get('ticket_subject')
+            ticket.description = form_result.get('ticket_note')
+            ticket.user_id = form_result.get('user_id')
 
-            db.add(t)
-            db.commit(); db.flush()
+            db.add(ticket)
+            transaction.commit()
 
         except validators.Invalid, error:
-            db.remove()
+            transaction.abort()
             return 'Validation Error: %s' % error
 
-        db.remove()
         return "Successfully added ticket note."

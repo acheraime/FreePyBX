@@ -37,9 +37,10 @@ from webob import Request, Response
 import simplejson as json
 from itertools import chain
 from freepybx.model import *
-from freepybx.model.meta import Session as db
+from freepybx.model.meta import db
 import inspect
 import mimetypes
+import transaction
 
 
 path_dir = config['app_conf']['fs_vm_dir']
@@ -127,7 +128,6 @@ def queue_delete(q):
         PbxRoute.query.filter(PbxRoute.pbx_route_type_id==10).filter(PbxRoute.pbx_to_id==queue.id).delete()
         CallCenterTier.query.filter(CallCenterTier.queue_id==queue.id).delete()
     CallCenterQueue.query.filter(CallCenterQueue.id==q.id).filter(CallCenterQueue.context==session['context']).delete()
-    db.commit()
     db.flush()
     return True
 
@@ -285,19 +285,15 @@ def get_volume(ext):
 
 def delete_extension_by_user_id(user_id):
     for ext in PbxEndpoint.query.filter(PbxEndpoint.user_id==user_id).filter(PbxEndpoint.user_context==session['context']).all():
-        for route in PbxRoute.query.filter(PbxRoute.pbx_route_type_id==1).\
-        filter(PbxRoute.name==ext.auth_id).filter(PbxRoute.context==session['context']).all():
+        for route in PbxRoute.query.filter(PbxRoute.pbx_route_type_id==1).filter(PbxRoute.name==ext.auth_id).filter(PbxRoute.context==session['context']).all():
             for condition in PbxCondition.query.filter_by(pbx_route_id=route.id).all():
                 PbxAction.query.filter_by(pbx_condition_id=condition.id).delete()
                 PbxCondition.query.filter_by(pbx_route_id=route.id).delete()
-            PbxRoute.query.filter(PbxRoute.pbx_route_type_id==1).\
-            filter(PbxRoute.name==ext.auth_id).filter(PbxRoute.context==session['context']).delete()
+            PbxRoute.query.filter(PbxRoute.pbx_route_type_id==1).filter(PbxRoute.name==ext.auth_id).filter(PbxRoute.context==session['context']).delete()
         for sg in PbxGroup.query.filter_by(context=session['context']).all():
             PbxGroupMember.query.filter_by(pbx_group_id=sg.id).filter_by(extension=ext.auth_id).delete()
         PbxEndpoint.query.filter(PbxEndpoint.user_id==user_id).filter(PbxEndpoint.user_context==session['context']).delete()
-        db.commit()
         db.flush()
-        db.remove()
     return True
 
 def delete_extension_by_ext(extension):
@@ -312,9 +308,7 @@ def delete_extension_by_ext(extension):
         for sg in PbxGroup.query.filter_by(context=session['context']).all():
             PbxGroupMember.query.filter_by(pbx_group_id=sg.id).filter_by(extension=ext.auth_id).delete()
         PbxEndpoint.query.filter(PbxEndpoint.auth_id==extension).filter(PbxEndpoint.user_context==session['context']).delete()
-        db.commit()
         db.flush()
-        db.remove()
     return True
 
 def delete_virtual_extension(extension):
@@ -329,9 +323,7 @@ def delete_virtual_extension(extension):
         for sg in PbxGroup.query.filter_by(context=session['context']).all():
             PbxGroupMember.query.filter_by(pbx_group_id=sg.id).filter_by(extension=extension).delete()
         PbxVirtualExtension.query.filter(PbxVirtualExtension.extension==extension).filter(PbxVirtualExtension.context==session['context']).delete()
-        db.commit()
         db.flush()
-        db.remove()
     return True
 
 def delete_virtual_mailbox(extension):
@@ -347,9 +339,7 @@ def delete_virtual_mailbox(extension):
         for sg in PbxGroup.query.filter_by(context=session['context']).all():
             PbxGroupMember.query.filter_by(pbx_group_id=sg.id).filter_by(extension=extension).delete()
         PbxVirtualMailbox.query.filter(PbxVirtualMailbox.extension==extension).filter(PbxVirtualMailbox.context==session['context']).delete()
-        db.commit()
         db.flush()
-        db.remove()
     return True
 
 def delete_group(name):
@@ -359,21 +349,15 @@ def delete_group(name):
             PbxRoute.query.filter(PbxRoute.pbx_route_type_id==4).\
             filter(PbxRoute.name==group.name).filter(PbxRoute.context==session['context']).delete()
         PbxGroup.query.filter(PbxGroup.name==name).filter(PbxGroup.context==session['context']).delete()
-        db.commit()
         db.flush()
-        db.remove()
     return True
 
 def delete_fax_ext(extension):
     for ext in PbxFax.query.filter(PbxFax.extension==extension).filter(PbxFax.context==session['context']).all():
-        for route in PbxRoute.query.filter(PbxRoute.pbx_route_type_id==12).\
-        filter(PbxRoute.name==ext.extension).filter(PbxRoute.context==session['context']).all():
-            PbxRoute.query.filter(PbxRoute.pbx_route_type_id==12).\
-            filter(PbxRoute.name==ext.extension).filter(PbxRoute.context==session['context']).delete()
+        for route in PbxRoute.query.filter(PbxRoute.pbx_route_type_id==12).filter(PbxRoute.name==ext.extension).filter(PbxRoute.context==session['context']).all():
+            PbxRoute.query.filter(PbxRoute.pbx_route_type_id==12).filter(PbxRoute.name==ext.extension).filter(PbxRoute.context==session['context']).delete()
         PbxFax.query.filter(PbxFax.extension==extension).filter(PbxFax.context==session['context']).delete()
-        db.commit()
         db.flush()
-        db.remove()
     return True
 
 def delete_ivr(name):
@@ -402,56 +386,41 @@ def delete_ivr(name):
             filter(PbxRoute.name==ivr.name).filter(PbxRoute.context==session['context']).delete()
             PbxIVROption.query.filter(PbxIVROption.pbx_ivr_id==ivr.id).delete()
             PbxIVR.query.filter(PbxIVR.name==name).filter(PbxIVR.context==session['context']).delete()
-            db.commit()
             db.flush()
-            db.remove()
         else:
             return msg
 
-        db.remove()
         return "Successfully deleted IVR: "+name+"."
 
 def delete_cid(cid_number):
     PbxCallerIDRoute.query.filter(PbxCallerIDRoute.cid_number==cid_number)\
     .filter(PbxCallerIDRoute.context==session['context']).delete()
-    db.commit()
     db.flush()
-    db.remove()
     return True
 
 def delete_tts(name):
-    tts = PbxTTS.query.filter(PbxTTS.name==name)\
-    .filter(PbxTTS.context==session['context']).first()
-    ivr = PbxIVR.query.filter(PbxIVR.audio_type==2)\
-    .filter(PbxIVR.data==str(tts.id)).first()
-    db.commit()
+    tts = PbxTTS.query.filter(PbxTTS.name==name).filter(PbxTTS.context==session['context']).first()
+    ivr = PbxIVR.query.filter(PbxIVR.audio_type==2).filter(PbxIVR.data==str(tts.id)).first()
     db.flush()
-    db.remove()
+
     if ivr:
         return "Error: That TTS is in use by the IVR named "+ivr.name+"!"
     else:
-        PbxTTS.query.filter(PbxTTS.name==name)\
-        .filter(PbxTTS.context==session['context']).delete()
-        db.commit()
+        PbxTTS.query.filter(PbxTTS.name==name).filter(PbxTTS.context==session['context']).delete()
         db.flush()
-        db.remove()
-    return "Successfully deleted TTS."
+    return "Successfully deleted Text to Speech."
 
 def del_blacklist(cid_number):
     PbxBlacklistedNumber.query.filter(PbxBlacklistedNumber.cid_number==cid_number)\
     .filter(PbxBlacklistedNumber.context==session['context']).delete()
-    db.commit()
     db.flush()
-    db.remove()
     return True
 
 def delete_conf(extension):
     PbxRoute.query.filter(PbxRoute.pbx_route_type_id==7)\
     .filter(PbxRoute.name==extension).filter(PbxRoute.context==session['context']).delete()
     PbxConferenceBridge.query.filter(PbxConferenceBridge.extension==extension).delete()
-    db.commit()
     db.flush()
-    db.remove()
     return True
 
 def delete_tod(name):
@@ -463,9 +432,7 @@ def delete_tod(name):
             filter(PbxRoute.name==tod.name).filter(PbxRoute.context==session['context']).delete()
         PbxTODRoute.query.filter(PbxTODRoute.name==name)\
         .filter(PbxTODRoute.context==session['context']).delete()
-        db.commit()
         db.flush()
-        db.remove()
     return True
 
 def delete_conditions(route_id):
@@ -474,17 +441,17 @@ def delete_conditions(route_id):
         for condition in PbxCondition.query.filter_by(pbx_route_id=route.id).all():
             PbxAction.query.filter_by(pbx_condition_id=condition.id).delete()
             PbxCondition.query.filter_by(pbx_route_id=route.id).delete()
-    db.commit(); db.flush(); db.remove()
+    db.flush()
 
 def delete_customer(context):
     PbxRoute.query.filter(PbxRoute.context==context).delete()
     Customer.query.filter(Customer.context==context).delete()
-    db.commit()
+    db.flush()
 
 def delete_did(context, did_id):
     PbxRoute.query.filter_by(context=context, pbx_to_id=did_id, pbx_route_type_id=9).delete()
     PbxDid.query.filter_by(context=context, id=did_id).delete()
-    db.commit()
+    db.flush()
 
 def get_findme(name, context):
     e = PbxEndpoint.query.filter_by(user_context=context).filter_by(auth_id=name).first()

@@ -20,46 +20,42 @@
     except that You may alter any license notices to the extent required to
     remedy known factual inaccuracies."""
 
-import logging
-from datetime import datetime
-from pylons import request, response, session, config, tmpl_context as c, url
-from pylons.controllers.util import abort, redirect
-from freepybx.lib.base import BaseController, render
-from freepybx.model import meta
-from freepybx.model.meta import *
-from freepybx.lib.util import *
-from itertools import chain
-from genshi import HTML
-from pylons.decorators.rest import restrict
-from genshi import HTML
-import formencode
-from formencode import validators
-from freepybx.lib.pymap.imap import Pymap
-from freepybx.lib.auth import *
-from freepybx.lib.validators import *
-from decorator import decorator
-from pylons.decorators.rest import restrict
-import formencode
-from formencode import validators
-from pylons.decorators import validate
-from simplejson import loads, dumps
-from webob import Request, Response
+import os
+import sys
+import urllib, urllib2
 import simplejson as json
 import transaction
 import pprint
 import os, sys
-from stat import *
-from webob import Request, Response
+import logging
 import cgi
 import simplejson as json
 from simplejson import loads, dumps
-import os, sys
-import simplejson as json
-from simplejson import loads, dumps
-import urllib, urllib2
+
+import formencode
+from formencode import validators
+
+from stat import *
+from datetime import datetime
+
+from pylons import request, response, session, config, tmpl_context as c, url
+from pylons.controllers.util import abort, redirect
+from pylons.decorators.rest import restrict
+from pylons.decorators import validate, jsonify
+
+from freepybx.lib.base import BaseController, render
+from freepybx.lib.util import *
+from freepybx.lib.auth import *
+from freepybx.lib.validators import *
 from freepybx.model import meta
 from freepybx.model.meta import *
-from freepybx.model.meta import Session as db
+from freepybx.model.meta import db
+
+from itertools import chain
+from genshi import HTML
+from decorator import decorator
+
+from webob import Request, Response
 import cgitb; cgitb.enable()
 
 
@@ -76,23 +72,25 @@ ESL_PASS = config['app_conf']['esl_pass']
 
 class DataInputError(Exception):
     message=""
-
     def __init__(self, message=None):
         Exception.__init__(self, message or self.message)
+
 
 class CallCenterController(BaseController):
 
     @authorize(logged_in)
+    @jsonify
     def queues(self):
         items=[]
-        for queue in CallCenterQueue.query.filter_by(context=session['context']).all():
-            items.append({'id': queue.id, 'name': queue.name})
+        try:
+            for queue in CallCenterQueue.query.filter_by(context=session['context']).all():
+                items.append({'id': queue.id, 'name': queue.name})
 
-        out = dict({'identifier': 'name', 'label': 'name', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
+            return {'identifier': 'name', 'label': 'name', 'items': items}
 
-        return response(request.environ, self.start_response)
+        except Exception, e:
+            return {'identifier': 'name', 'label': 'name', 'items': items, 'is_error': True, 'message': str(e)}
+
 
     @authorize(logged_in)
     def ccq_add(self):
@@ -124,7 +122,6 @@ class CallCenterController(BaseController):
             ccq.announce_frequency = form_result.get('announce_frequency')
 
             db.add(ccq)
-            db.commit()
             db.flush()
 
             dir = fs_vm_dir+session['context']+"/queue-recordings/"+ccq.name
@@ -133,23 +130,21 @@ class CallCenterController(BaseController):
                 os.makedirs(dir)
 
         except validators.Invalid, error:
-            db.remove()
+            transaction.abort()
             return 'Error: %s.' % error
 
-        r = PbxRoute()
-        r.context = session['context']
-        r.domain = session['context']
-        r.name = form_result['name']
-        r.continue_route = True
-        r.voicemail_enable = True
-        r.voicemail_ext = form_result['name']
-        r.pbx_route_type_id = 10
-        r.pbx_to_id = ccq.id
+        route = PbxRoute()
+        route.context = session['context']
+        route.domain = session['context']
+        route.name = form_result['name']
+        route.continue_route = True
+        route.voicemail_enable = True
+        route.voicemail_ext = form_result['name']
+        route.pbx_route_type_id = 10
+        route.pbx_to_id = ccq.id
 
-        db.add(r)
-        db.commit()
-        db.flush()
-        db.remove()
+        db.add(route)
+        transaction.commit()
 
         return "Successfully added Call Center queue "+form_result['name']+"."
 
@@ -181,108 +176,117 @@ class CallCenterController(BaseController):
             ccq.announce_sound = form_result.get('announce_sound').split(",")[1]
             ccq.announce_frequency = form_result.get('announce_frequency')
 
-            db.commit()
-            db.flush()
+            transaction.commit()
 
         except validators.Invalid, error:
-            db.remove()
+            transaction.abort()
             return 'Error: %s.' % error
 
-        db.remove()
         return "Successfully updated Call Center queue "+ccq.name+"."
 
+    @authorize(logged_in)
+    @jsonify
     def ccq_by_id(self, id, **kw):
         items=[]
-        for ccq in CallCenterQueue.query.filter_by(context=session['context']).filter_by(id=id).all():
-            items.append({'id': ccq.id, 'name': ccq.name, 'audio_type': ccq.audio_type, 'audio_name': str(ccq.audio_type)+","+str(ccq.audio_name),
-                          'moh_sound': ccq.moh_sound, 'time_base_score': ccq.time_base_score, 'max_wait_time': ccq.max_wait_time,
-                          'max_wait_time_with_no_agent': ccq.max_wait_time_with_no_agent, 'max_wait_time_with_no_agent_reached': ccq.max_wait_time_with_no_agent_reached,
-                          'tier_rules_apply': ccq.tier_rules_apply, 'tier_rule_wait_second': ccq.tier_rule_wait_second, 'tier_rule_wait_multiply_level': ccq.tier_rule_wait_multiply_level,
-                          'tier_rule_agent_no_wait': ccq.tier_rule_agent_no_wait, 'discard_abandoned_after': ccq.discard_abandoned_after,
-                          'abandoned_resume_allowed': ccq.abandoned_resume_allowed, 'strategy': ccq.strategy, 'failed_route_id': ccq.failed_route_id,
-                          'record_calls': ccq.record_calls, 'announce_position': ccq.announce_position, 'announce_sound': "1,"+ccq.announce_sound,
-                          'announce_frequency': ccq.announce_frequency})
+        try:
+            for ccq in CallCenterQueue.query.filter_by(context=session['context']).filter_by(id=id).all():
+                items.append({'id': ccq.id, 'name': ccq.name, 'audio_type': ccq.audio_type, 'audio_name': str(ccq.audio_type)+","+str(ccq.audio_name),
+                              'moh_sound': ccq.moh_sound, 'time_base_score': ccq.time_base_score, 'max_wait_time': ccq.max_wait_time,
+                              'max_wait_time_with_no_agent': ccq.max_wait_time_with_no_agent, 'max_wait_time_with_no_agent_reached': ccq.max_wait_time_with_no_agent_reached,
+                              'tier_rules_apply': ccq.tier_rules_apply, 'tier_rule_wait_second': ccq.tier_rule_wait_second, 'tier_rule_wait_multiply_level': ccq.tier_rule_wait_multiply_level,
+                              'tier_rule_agent_no_wait': ccq.tier_rule_agent_no_wait, 'discard_abandoned_after': ccq.discard_abandoned_after,
+                              'abandoned_resume_allowed': ccq.abandoned_resume_allowed, 'strategy': ccq.strategy, 'failed_route_id': ccq.failed_route_id,
+                              'record_calls': ccq.record_calls, 'announce_position': ccq.announce_position, 'announce_sound': "1,"+ccq.announce_sound,
+                              'announce_frequency': ccq.announce_frequency})
 
-        out = dict({'identifier': 'id', 'label': 'name', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
+            return {'identifier': 'id', 'label': 'name', 'items': items}
 
-        return response(request.environ, self.start_response)
+        except Exception, e:
+            return {'identifier': 'id', 'label': 'name', 'items': items, 'is_error': True, 'message': str(e)}
 
     @authorize(logged_in)
+    @jsonify
     def ccq_audio(self):
         items = []
-        dir = fs_vm_dir+session['context']+"/recordings/"
-        for i in os.listdir(dir):
-            fo = generateFileObject(i, "",  dir)
-            items.append({'id': '1,'+fo["name"], 'name': 'Recording: '+fo["name"] , 'data': fo["path"], 'type': 1, 'real_id': ""})
+        try:
+            dir = fs_vm_dir+session['context']+"/recordings/"
+            for i in os.listdir(dir):
+                fo = generateFileObject(i, "",  dir)
+                items.append({'id': '1,'+fo["name"], 'name': 'Recording: '+fo["name"] , 'data': fo["path"], 'type': 1, 'real_id': ""})
 
-        items.append({'id': '0,local_stream://moh', 'name': 'Default Music on Hold' , 'data': 'local_stream://moh', 'type': 1, 'real_id': ""})
-        out = dict({'identifier': 'id', 'label': 'name', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
+            items.append({'id': '0,local_stream://moh', 'name': 'Default Music on Hold' , 'data': 'local_stream://moh', 'type': 1, 'real_id': ""})
+            return {'identifier': 'id', 'label': 'name', 'items': items}
 
-        return response(request.environ, self.start_response)
+        except Exception, e:
+            return {'identifier': 'id', 'label': 'name', 'items': items, 'is_error': True, 'message': str(e)}
 
     @authorize(logged_in)
     def delete_queue(self, **kw):
 
-        id = request.params.get('id', None)
-        q = CallCenterQueue.query.filter(CallCenterQueue.id==id).filter(CallCenterQueue.context==session['context']).first()
+        try:
+            id = request.params.get('id', None)
+            q = CallCenterQueue.query.filter(CallCenterQueue.id==id).filter(CallCenterQueue.context==session['context']).first()
 
-        queue = CallCenterQueue.query.filter(CallCenterQueue.id==q.id).first()
-        CallCenterTier.query.filter(CallCenterTier.queue_id==queue.id).delete()
-        CallCenterQueue.query.filter(CallCenterQueue.id==q.id).delete()
+            queue = CallCenterQueue.query.filter(CallCenterQueue.id==q.id).first()
+            CallCenterTier.query.filter(CallCenterTier.queue_id==queue.id).delete()
+            CallCenterQueue.query.filter(CallCenterQueue.id==q.id).delete()
 
-        db.commit()
-        db.flush()
-        db.remove()
+            transaction.commit()
 
-        return "Successfully removed queue."
+            return "Successfully removed queue."
+
+        except Exception, e:
+            transaction.abort()
+            return "Error: %s" % e
 
     @authorize(logged_in)
+    @jsonify
     def agents(self):
         items=[]
-        for agent in CallCenterAgent.query.filter_by(context=session['context']).all():
-            items.append({'id': agent.id, 'extension': agent.extension, 'status': agent.status})
+        try:
+            for agent in CallCenterAgent.query.filter_by(context=session['context']).all():
+                items.append({'id': agent.id, 'extension': agent.extension, 'status': agent.status})
 
+            return {'identifier': 'extension', 'label': 'extension', 'items': items}
 
-        out = dict({'identifier': 'extension', 'label': 'extension', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
-
-        return response(request.environ, self.start_response)
+        except Exception, e:
+            return {'identifier': 'extension', 'label': 'extension', 'items': items, 'is_error': True, 'message': str(e)}
 
     @authorize(logged_in)
+    @jsonify
     def agent_avail_endpoints(self):
         items=[]
-        ext = request.params.get('ext', None)
-        if ext:
-            items.append({'id': 0, 'extension': ext})
-        for row in PbxEndpoint.query.filter_by(user_context=session['context']).order_by(PbxEndpoint.auth_id).all():
-            if CallCenterAgent.query.filter_by(extension=row.auth_id).filter_by(context=session['context']).count()>0:
-                continue
+        try:
+            ext = request.params.get('ext', None)
+            if ext:
+                items.append({'id': 0, 'extension': ext})
 
+            for row in PbxEndpoint.query.filter_by(user_context=session['context'])\
+                        .order_by(PbxEndpoint.auth_id).all():
+                if CallCenterAgent.query.filter_by(extension=row.auth_id)\
+                        .filter_by(context=session['context']).count()>0:
+                    continue
 
-            items.append({'id': row.id, 'extension': row.auth_id})
+                items.append({'id': row.id, 'extension': row.auth_id})
 
-        out = dict({'identifier': 'extension', 'label': 'extension', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
+            return {'identifier': 'extension', 'label': 'extension', 'items': items}
 
-        return response(request.environ, self.start_response)
+        except Exception, e:
+            return {'identifier': 'extension', 'label': 'extension', 'items': items, 'is_error': True, 'message': str(e)}
 
     @authorize(logged_in)
+    @jsonify
     def agent_endpoints(self):
         items=[]
-        for row in PbxEndpoint.query.filter_by(user_context=session['context']).order_by(PbxEndpoint.auth_id).all():
-            items.append({'id': row.id, 'extension': row.auth_id})
+        try:
+            for row in PbxEndpoint.query.filter_by(user_context=session['context'])\
+                    .order_by(PbxEndpoint.auth_id).all():
+                items.append({'id': row.id, 'extension': row.auth_id})
 
-        out = dict({'identifier': 'extension', 'label': 'extension', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
+            return {'identifier': 'extension', 'label': 'extension', 'items': items}
 
-        return response(request.environ, self.start_response)
+        except Exception, e:
+            return {'identifier': 'extension', 'label': 'extension', 'items': items, 'is_error': True, 'message': str(e)}
 
     @authorize(logged_in)
     def agent_add(self):
@@ -291,7 +295,8 @@ class CallCenterController(BaseController):
             form_result = schema.to_python(request.params)
             cca = CallCenterAgent()
             cca.extension = form_result.get('extension')
-            e = PbxEndpoint.query.filter_by(user_context=session['context']).filter(PbxEndpoint.auth_id==cca.extension).first()
+            endpoint = PbxEndpoint.query.filter_by(user_context=session['context'])\
+                        .filter(PbxEndpoint.auth_id==cca.extension).first()
             cca.context = session['context']
             cca.domain = session['context']
             cca.type = 'callback'
@@ -307,18 +312,16 @@ class CallCenterController(BaseController):
             cca.record_calls = form_result.get('record_calls', 0)
             cca.status = 'Available'
             cca.state = 'Waiting'
-            cca.user_id = e.user_id
-            cca.pbx_endpoint_id = e.id
+            cca.user_id = endpoint.user_id
+            cca.pbx_endpoint_id = endpoint.id
 
             db.add(cca)
-            db.commit()
-            db.flush()
+            transaction.commit()
 
         except validators.Invalid, error:
-            db.remove()
+            transaction.abort()
             return 'Error: %s.' % error
 
-        db.remove()
         return "Successfully added agent."
 
     @authorize(logged_in)
@@ -326,9 +329,11 @@ class CallCenterController(BaseController):
         schema = AgentEditForm()
         try:
             form_result = schema.to_python(request.params)
-            cca = CallCenterAgent.query.filter_by(context=session['context']).filter(CallCenterAgent.id==form_result.get('agent_id')).first()
+            cca = CallCenterAgent.query.filter_by(context=session['context'])\
+                    .filter(CallCenterAgent.id==form_result.get('agent_id')).first()
             cca.extension = form_result.get('extension')
-            e = PbxEndpoint.query.filter_by(user_context=session['context']).filter(PbxEndpoint.auth_id==cca.extension).first()
+            endpoint = PbxEndpoint.query.filter_by(user_context=session['context'])\
+                    .filter(PbxEndpoint.auth_id==cca.extension).first()
             cca.context = session['context']
             cca.domain = session['context']
             cca.type = 'callback'
@@ -339,17 +344,15 @@ class CallCenterController(BaseController):
             cca.reject_delay_time = form_result.get('reject_delay_time', 30)
             cca.busy_delay_time = form_result.get('busy_delay_time', 0)
             cca.no_answer_delay_time = form_result.get('no_answer_delay_time', 5)
-            cca.user_id = e.user_id
-            cca.pbx_endpoint_id = e.id
+            cca.user_id = endpoint.user_id
+            cca.pbx_endpoint_id = endpoint.id
 
-            db.commit()
-            db.flush()
+            transaction.commit()
 
         except validators.Invalid, error:
-            db.remove()
+            transaction.abort()
             return 'Error: %s.' % error
 
-        db.remove()
         return "Successfully edited agent."
 
     @restrict("GET")
@@ -358,28 +361,28 @@ class CallCenterController(BaseController):
 
         try:
             CallCenterAgent.query.filter_by(id=request.params.get('id', 0)).delete()
-            db.commit()
-            db.flush()
-            db.remove()
+            transaction.commit()
 
         except:
+            transaction.abort()
             return "Error deleting agent."
 
         return  "Successfully deleted agent."
 
-
+    @authorize(logged_in)
+    @jsonify
     def cca_by_id(self, id, **kw):
         items=[]
-        for cca in CallCenterAgent.query.filter_by(context=session['context']).filter_by(id=id).all():
-            items.append({'id': cca.id, 'extension': cca.extension, 'type': cca.type, 'timeout': cca.timeout,
-                          'max_no_answer': cca.max_no_answer, 'wrap_up_time': cca.wrap_up_time, 'reject_delay_time': cca.reject_delay_time,
-                          'busy_delay_time': cca.busy_delay_time, 'no_answer_delay_time': cca.no_answer_delay_time, 'record_calls': cca.record_calls})
+        try:
+            for cca in CallCenterAgent.query.filter_by(context=session['context']).filter_by(id=id).all():
+                items.append({'id': cca.id, 'extension': cca.extension, 'type': cca.type, 'timeout': cca.timeout,
+                              'max_no_answer': cca.max_no_answer, 'wrap_up_time': cca.wrap_up_time, 'reject_delay_time': cca.reject_delay_time,
+                              'busy_delay_time': cca.busy_delay_time, 'no_answer_delay_time': cca.no_answer_delay_time, 'record_calls': cca.record_calls})
 
-        out = dict({'identifier': 'id', 'label': 'name', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
+            return {'identifier': 'id', 'label': 'name', 'items': items}
 
-        return response(request.environ, self.start_response)
+        except Exception,e:
+            return {'identifier': 'id', 'label': 'name', 'items': items, 'is_error': True, 'message': str(e)}
 
     @authorize(logged_in)
     def update_agent_grid(self):
@@ -392,40 +395,39 @@ class CallCenterController(BaseController):
                 fsa = CallCenterAgent.query.filter(CallCenterAgent.name==str(i['extension'])+"@"+str(session['context'])).first()
                 fsa.status = i['status']
 
-                db.commit()
-                db.flush()
-                db.remove()
+                transaction.commit()
 
         except DataInputError, error:
+            transaction.abort()
             return 'Error: %s' % error
 
         return "Successfully update agent."
 
     @authorize(logged_in)
+    @jsonify
     def tiers(self):
         items=[]
+        try:
+            for tier in CallCenterTier.query.join(CallCenterQueue)\
+                    .filter(CallCenterQueue.context==session['context']).all():
+                agent = get_agent(tier.agent_id)
+                queue = get_queue(tier.queue_id)
+                items.append({'id': tier.id, 'agent': agent.extension,
+                              'queue': queue.name, 'level': tier.level,
+                              'position': tier.position, 'state': tier.state})
 
-        for tier in CallCenterTier.query.join(CallCenterQueue).filter(CallCenterQueue.context==session['context']).all():
-            agent = get_agent(tier.agent_id)
-            queue = get_queue(tier.queue_id)
-            items.append({'id': tier.id, 'agent': agent.extension, 'queue': queue.name, 'level': tier.level, 'position': tier.position, 'state': tier.state})
+            return {'identifier': 'id', 'label': 'agent', 'items': items}
 
-
-        out = dict({'identifier': 'id', 'label': 'agent', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
-
-        return response(request.environ, self.start_response)
+        except Exception, e:
+            return {'identifier': 'id', 'label': 'agent', 'items': items, 'is_error': True, 'message': str(e)}
 
     @authorize(logged_in)
     def tier_add(self):
         schema = TierForm()
         try:
             form_result = schema.to_python(request.params)
-
-            log.debug("######################" + form_result.get('queue_name'))
-
-            cca = CallCenterAgent.query.filter_by(extension=form_result.get('agent_extension', None)).filter_by(context=session['context']).first()
+            cca = CallCenterAgent.query.filter_by(extension=form_result.get('agent_extension', None))\
+                    .filter_by(context=session['context']).first()
             cur_cct = CallCenterTier.query.filter_by(agent=cca.name).first()
             ccq = CallCenterQueue.query.filter_by(name=form_result.get('queue_name', None)).first()
 
@@ -433,7 +435,6 @@ class CallCenterController(BaseController):
                 return "Agent in tier already exists!"
 
             cct = CallCenterTier()
-
             cct.extension = cca.extension
             cct.queue_id = ccq.id
             cct.agent_id = cca.id
@@ -446,16 +447,13 @@ class CallCenterController(BaseController):
             cct.domain = session['context']
 
             db.add(cct)
-            db.commit()
-            db.flush()
+            transaction.commit()
 
         except validators.Invalid, error:
-            db.remove()
+            transaction.abort()
             return 'Error: %s.' % error
 
-        db.remove()
         return "Successfully created tier agent."
-
 
     @authorize(logged_in)
     def update_tier_grid(self):
@@ -471,11 +469,10 @@ class CallCenterController(BaseController):
                 tier.level = i['level']
                 tier.position = i['position']
 
-                db.commit()
-                db.flush()
-                db.remove()
+                transaction.commit()
 
         except DataInputError, error:
+            transaction.abort()
             return 'Error: %s' % error
 
         return "Sucessfully updated agent tiers."
@@ -486,40 +483,47 @@ class CallCenterController(BaseController):
 
         try:
             CallCenterTier.query.filter_by(id=request.params.get('id', 0)).delete()
-            db.commit()
-            db.flush()
-            db.remove()
+            transaction.commit()
 
         except:
+            transaction.abort()
             return "Error deleting tier agent."
 
         return  "Successfully deleted tier agent."
 
+    #XXX: ???
+    @authorize(logged_in)
     def cc_cdr_stats(self):
         pass
 
+    @authorize(logged_in)
+    @jsonify
     def get_queue_calls(self):
-        log.debug(request.params.get("sid"))
-        user = User.query.filter_by(session_id=request.params.get("sid")).first()
-        if user:
-            context = user.get_context()
-        else:
-            return ""
-        items = []
-        sql = "SELECT * FROM call_center_callers WHERE queue like '%@{0}'".format(context)
 
-        for call in db.execute(sql):
-            items.append({'queue': call.queue.split("@")[0], 'cid_name': call.cid_name, 'cid_number': call.cid_number, 'agent': call.serving_agent.split("@")[0], 'state': call.state, 'uuid': call.uuid})
+        try:
+            user = User.query.filter_by(session_id=request.params.get("sid")).first()
 
-        if not len(items) == 0:
-            return ""
+            if user:
+                context = user.get_context()
+            else:
+                return ""
 
+            items = []
+            sql = "SELECT * FROM call_center_callers WHERE queue like '%@{0}'".format(context)
 
-        out = items
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
+            for call in db.execute(sql):
+                items.append({'queue': call.queue.split("@")[0], 'cid_name': call.cid_name,
+                              'cid_number': call.cid_number, 'agent': call.serving_agent.split("@")[0],
+                              'state': call.state, 'uuid': call.uuid})
 
-        return response(request.environ, self.start_response)
+            if not len(items) == 0:
+                return ""
+
+            return items
+
+        except Exception, e:
+            {'is_error': True, 'message': str(e)}
+
 
     @restrict("POST")
     @authorize(logged_in)
@@ -531,62 +535,58 @@ class CallCenterController(BaseController):
             file_name = path.split("/")[len(path.split("/"))-1]
             dir = fs_vm_dir+session['context']+"/queue-recordings/"+queue+"/"
             os.remove(os.path.join(dir, file_name))
-
         except:
-            return "Error..."
+            return "Error: Deleting queue recording."
 
         return "Deleted queue recording."
 
     @authorize(logged_in)
+    @jsonify
     def get_queue_recordings(self):
         files = []
-        queue = request.params.get("queue_name")
+        try:
+            queue = request.params.get("queue_name")
 
-        dir = fs_vm_dir+session['context']+"/queue-recordings/"+queue
-        for i in os.listdir(dir):
-            path = dir+"/"+i
-            id = i.split(".")[3].strip()
-            row = PbxCdr.query.filter(PbxCdr.uuid==id).first()
-            if row:
-                caller = row.caller_id_number[len(row.caller_id_number)-10:]
-                dest = row.destination_number
-                agent = PbxCdr.query.filter(PbxCdr.uuid==row.bleg_uuid).first()
-                agent_ext = agent.destination_number
-            else:
-                agent_ext = "No CDR"
-                dest = "No CDR"
-                caller = "No CDR"
+            dir = fs_vm_dir+session['context']+"/queue-recordings/"+queue
+            for i in os.listdir(dir):
+                path = dir+"/"+i
+                id = i.split(".")[3].strip()
+                row = PbxCdr.query.filter(PbxCdr.uuid==id).first()
+                if row:
+                    caller = row.caller_id_number[len(row.caller_id_number)-10:]
+                    dest = row.destination_number
+                    agent = PbxCdr.query.filter(PbxCdr.uuid==row.bleg_uuid).first()
+                    agent_ext = agent.destination_number
+                else:
+                    agent_ext = "No CDR"
+                    dest = "No CDR"
+                    caller = "No CDR"
 
-            tpath = "/vm/" +session['context']+"/queue-recordings/"+queue+"/"+i
-            received = str(modification_date(path)).strip("\"")
-            fsize = str(os.path.getsize(path))
+                tpath = "/vm/" +session['context']+"/queue-recordings/"+queue+"/"+i
+                received = str(modification_date(path)).strip("\"")
+                fsize = str(os.path.getsize(path))
 
-            files.append({'name': caller, 'queue': queue, 'destination': dest, 'agent': agent_ext, 'path': tpath, 'received': received, 'size': fsize})
+                files.append({'name': caller, 'queue': queue, 'destination': dest,
+                              'agent': agent_ext, 'path': tpath, 'received': received, 'size': fsize})
 
-        db.remove()
-        out = dict({'identifier': 'path', 'label': 'name', 'items': files})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
-
-        return response(request.environ, self.start_response)
+            return {'identifier': 'path', 'label': 'name', 'items': files}
+        except Exception, e:
+            return {'identifier': 'path', 'label': 'name', 'items': files}
 
     @authorize(logged_in)
+    @jsonify
     def ad_audio(self):
         items = []
         dir = fs_vm_dir+session['context']+"/recordings/"
         try:
             for i in os.listdir(dir):
                 fo = generateFileObject(i, "",  dir)
-                items.append({'id': '1,'+fo["name"], 'name': 'Recording: '+fo["name"] , 'data': fo["path"], 'type': 1, 'real_id': ""})
+                items.append({'id': '1,'+fo["name"], 'name': 'Recording: '+fo["name"] ,
+                              'data': fo["path"], 'type': 1, 'real_id': ""})
 
-            db.remove()
         except:
             pass
-        out = dict({'identifier': 'id', 'label': 'name', 'items': items})
 
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json; charset=UTF-8'),]
-
-        return response(request.environ, self.start_response)
+        return {'identifier': 'id', 'label': 'name', 'items': items}
     
     

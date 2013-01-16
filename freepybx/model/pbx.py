@@ -27,16 +27,15 @@ from datetime import datetime
 from sqlalchemy import ForeignKey, Column
 from sqlalchemy.types import Integer, DateTime, Boolean, Unicode, UnicodeText
 from sqlalchemy.orm import relation, synonym, relationship, backref
-from freepybx.model.meta import Session, Base
+from freepybx.model.meta import db, Base
 
 
 class PbxContext(Base):
     __tablename__='pbx_contexts'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
-    customer_id =  Column(Integer, ForeignKey('customers.id', onupdate="CASCADE", ondelete="CASCADE"))
+    customer_id =  Column(Integer, ForeignKey('customers.id',
+        onupdate="CASCADE", ondelete="CASCADE"))
     domain = Column(Unicode(64), unique=True)
     profile = Column(Unicode(64))
     context = Column(Unicode(128))
@@ -56,16 +55,15 @@ class PbxContext(Base):
         self.caller_id_number = caller_id_number
 
     def by_domain(self, domain=None):
-        return Session.query(PbxContext).filter_by(domain=domain).first()
+        return db.query(PbxContext).filter_by(domain=domain).first()
 
 
 class PbxIVR(Base):
     __tablename__='pbx_ivrs'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
-    customer_id = Column(Integer, ForeignKey('customers.id', onupdate="CASCADE", ondelete="CASCADE"))
+    customer_id = Column(Integer, ForeignKey('customers.id',
+        onupdate="CASCADE", ondelete="CASCADE"))
     domain = Column(Unicode(64), default=u"sip.freepybx.org")
     context = Column(Unicode(128), default=u"sip.freepybx.org")
     created = Column(DateTime, default=datetime.date(datetime.now()))
@@ -74,7 +72,8 @@ class PbxIVR(Base):
     data = Column(Unicode(64))
     timeout = Column(Integer)
     direct_dial = Column(Boolean, default=True)
-    timeout_destination = Column(Integer, ForeignKey('pbx_routes.id', onupdate="CASCADE", ondelete="CASCADE"))
+    timeout_destination = Column(Integer, ForeignKey('pbx_routes.id',
+        onupdate="CASCADE", ondelete="CASCADE"))
 
     def __str__(self):
         return self.id
@@ -83,12 +82,12 @@ class PbxIVR(Base):
 class PbxIVROption(Base):
     __tablename__='pbx_ivr_options'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
-    pbx_ivr_id = Column(Integer, ForeignKey('pbx_ivrs.id', onupdate="CASCADE", ondelete="CASCADE"))
+    pbx_ivr_id = Column(Integer, ForeignKey('pbx_ivrs.id',
+        onupdate="CASCADE", ondelete="CASCADE"))
     option = Column(Unicode(1))
-    pbx_route_id = Column(Integer, ForeignKey('pbx_routes.id', onupdate="CASCADE", ondelete="CASCADE"))
+    pbx_route_id = Column(Integer, ForeignKey('pbx_routes.id',
+        onupdate="CASCADE", ondelete="CASCADE"))
 
     def __str__(self):
         return self.id
@@ -97,15 +96,14 @@ class PbxIVROption(Base):
 class PbxVirtualExtension(Base):
     __tablename__='pbx_virtual_extensions'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     domain = Column(Unicode(64), default=u"sip.freepybx.org")
     context = Column(Unicode(128), default=u"sip.freepybx.org")
     extension = Column(Unicode(4), nullable=False)
     did = Column(Unicode(15), nullable=False)
     timeout = Column(Integer, default=13)
-    pbx_route_id = Column(Integer, ForeignKey('pbx_routes.id', onupdate="CASCADE", ondelete="CASCADE"))
+    pbx_route_id = Column(Integer, ForeignKey('pbx_routes.id',
+        onupdate="CASCADE", ondelete="CASCADE"))
 
     def __str__(self):
         return self.id
@@ -114,13 +112,12 @@ class PbxVirtualExtension(Base):
 class PbxCallerIDRoute(Base):
     __tablename__='pbx_caller_id_routes'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     domain = Column(Unicode(64), default=u"sip.freepybx.org")
     context = Column(Unicode(128), default=u"sip.freepybx.org")
     cid_number = Column(Unicode(15), nullable=False)
-    pbx_route_id = Column(Integer, ForeignKey('pbx_routes.id', onupdate="CASCADE", ondelete="CASCADE"))
+    pbx_route_id = Column(Integer, ForeignKey('pbx_routes.id',
+        onupdate="CASCADE", ondelete="CASCADE"))
 
     def __str__(self):
         return self.id
@@ -128,8 +125,6 @@ class PbxCallerIDRoute(Base):
 
 class PbxBlacklistedNumber(Base):
     __tablename__='pbx_blacklisted_numbers'
-
-    query = Session.query_property()
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     domain = Column(Unicode(64), default=u"sip.freepybx.org")
@@ -142,8 +137,6 @@ class PbxBlacklistedNumber(Base):
 
 class PbxVirtualMailbox(Base):
     __tablename__='pbx_virtual_mailboxes'
-
-    query = Session.query_property()
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     domain = Column(Unicode(64), default=u"sip.freepybx.org")
@@ -164,10 +157,9 @@ class PbxVirtualMailbox(Base):
 class PbxTTS(Base):
     __tablename__='pbx_tts'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
-    customer_id = Column(Integer, ForeignKey('customers.id', onupdate="CASCADE", ondelete="CASCADE"))
+    customer_id = Column(Integer, ForeignKey('customers.id',
+        onupdate="CASCADE", ondelete="CASCADE"))
     domain = Column(Unicode(64), default=u"sip.freepybx.org")
     context = Column(Unicode(128), default=u"sip.freepybx.org")
     created = Column(DateTime, default=datetime.date(datetime.now()))
@@ -181,8 +173,6 @@ class PbxTTS(Base):
 
 class PbxTODRoute(Base):
     __tablename__='pbx_tod_routes'
-
-    query = Session.query_property()
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     domain = Column(Unicode(64), default=u"sip.freepybx.org")
@@ -202,10 +192,9 @@ class PbxTODRoute(Base):
 class PbxRecording(Base):
     __tablename__='pbx_pbx_recordings'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
-    customer_id = Column(Integer, ForeignKey('customers.id', onupdate="CASCADE", ondelete="CASCADE"))
+    customer_id = Column(Integer, ForeignKey('customers.id',
+        onupdate="CASCADE", ondelete="CASCADE"))
     domain = Column(Unicode(64), default=u"sip.freepybx.org")
     context = Column(Unicode(128), default=u"sip.freepybx.org")
     created = Column(DateTime, default=datetime.date(datetime.now()))
@@ -220,8 +209,6 @@ class PbxRecording(Base):
 class PbxDid(Base):
     __tablename__='pbx_dids'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     did = Column(Unicode(20), nullable=False,  unique=True)
     active = Column(Boolean, default=True)
@@ -230,12 +217,15 @@ class PbxDid(Base):
     t38 = Column(Boolean, default=False)
     cnam = Column(Boolean, default=False)
     e911 = Column(Boolean, default=False)
-    did_vendor_id = Column(Integer, ForeignKey('did_vendors.id', onupdate="CASCADE", ondelete="CASCADE"))
-    customer_id = Column(Integer, ForeignKey('customers.id', onupdate="CASCADE", ondelete="CASCADE"))
+    did_vendor_id = Column(Integer, ForeignKey('did_vendors.id',
+        onupdate="CASCADE", ondelete="CASCADE"))
+    customer_id = Column(Integer, ForeignKey('customers.id',
+        onupdate="CASCADE", ondelete="CASCADE"))
     pbx_route_id = Column(Integer, default=0)
     created = Column(DateTime, default=datetime.now())
 
-    def __init__(self, did, customer_id, context, domain, t38=False, e911=False, cnam=False, active=True, pbx_route_id=0):
+    def __init__(self, did, customer_id, context, domain, t38=False,
+                 e911=False, cnam=False, active=True, pbx_route_id=0):
         self.did = did
         self.customer_id = customer_id
         self.context = context
@@ -256,8 +246,6 @@ class PbxDid(Base):
 class PbxDidPool(Base):
     __tablename__='pbx_did_pool'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     did = Column(Unicode(20), nullable=False)
     active = Column(Boolean, default=True)
@@ -266,13 +254,16 @@ class PbxDidPool(Base):
     t38 = Column(Boolean, default=False)
     cnam = Column(Boolean, default=False)
     e911 = Column(Boolean, default=False)
-    customer_id = Column(Integer, ForeignKey('customers.id', onupdate="CASCADE", ondelete="CASCADE"))
-    did_vendor_id = Column(Integer, ForeignKey('did_vendors.id', onupdate="CASCADE", ondelete="CASCADE"))
+    customer_id = Column(Integer, ForeignKey('customers.id',
+        onupdate="CASCADE", ondelete="CASCADE"))
+    did_vendor_id = Column(Integer, ForeignKey('did_vendors.id',
+        onupdate="CASCADE", ondelete="CASCADE"))
     pbx_route_id = Column(Integer, default=0)
     created = Column(DateTime, default=datetime.now())
     deactivated = Column(DateTime, default=datetime.now())
 
-    def __init__(self, did, customer_id, context, domain, t38, e911, cnam, active=True, pbx_route_id=0):
+    def __init__(self, did, customer_id, context, domain, t38,
+                 e911, cnam, active=True, pbx_route_id=0):
         self.did = did
         self.customer_id = customer_id
         self.context = context
@@ -293,8 +284,6 @@ class PbxDidPool(Base):
 class PbxDidVendor(Base):
     __tablename__='did_vendors'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     name = Column(Unicode(100),nullable=False)
     email = Column(Unicode(100))
@@ -311,8 +300,6 @@ class PbxDidVendor(Base):
 
 class PbxProfile(Base):
     __tablename__='pbx_profiles'
-
-    query = Session.query_property()
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     name = Column(Unicode(64), nullable=True)
@@ -356,7 +343,7 @@ class PbxProfile(Base):
 
 
     def get_gateways(self):
-        return Session.query(PbxGateway).filter_by(pbx_profile_id=self.id)
+        return db.query(PbxGateway).filter_by(pbx_profile_id=self.id)
 
     def __str__(self):
         return "sip profile: %s:%s" % (self.ext_rtp_ip, self.sip_port)
@@ -368,11 +355,10 @@ class PbxProfile(Base):
 class PbxGateway(Base):
     __tablename__='pbx_gateways'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     name = Column(Unicode(64), nullable=True)
-    pbx_profile_id = Column(Integer, ForeignKey('pbx_profiles.id', onupdate="CASCADE", ondelete="CASCADE"))
+    pbx_profile_id = Column(Integer, ForeignKey('pbx_profiles.id',
+        onupdate="CASCADE", ondelete="CASCADE"))
     username = Column(Unicode(64), nullable=True)
     password = Column(Unicode(64), nullable=True)
     proxy = Column(Unicode(64), nullable=True)
@@ -400,8 +386,6 @@ class PbxGateway(Base):
 class PbxAclBlacklist(Base):
     __tablename__='pbx_acl_blacklist'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     name = Column(Unicode(64), nullable=True)
     ip = Column(Unicode(15), nullable=False)
@@ -414,10 +398,9 @@ class PbxAclBlacklist(Base):
 class PbxRoute(Base):
     __tablename__='pbx_routes'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
-    pbx_route_type_id = Column(Integer, ForeignKey('pbx_route_types.id', onupdate="CASCADE", ondelete="CASCADE"), default=1)
+    pbx_route_type_id = Column(Integer, ForeignKey('pbx_route_types.id',
+        onupdate="CASCADE", ondelete="CASCADE"), default=1)
     pbx_to_id = Column(Integer)
     context = Column(Unicode(64), default=u'default')
     domain = Column(Unicode(128), default=u'sip.freepybx.org')
@@ -430,8 +413,6 @@ class PbxRoute(Base):
 class PbxRouteType(Base):
     __tablename__='pbx_route_types'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     name = Column(Unicode(64))
     description = Column(Unicode(255))
@@ -443,10 +424,9 @@ class PbxRouteType(Base):
 class PbxCondition(Base):
     __tablename__='pbx_conditions'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
-    pbx_route_id = Column(Integer, ForeignKey('pbx_routes.id', onupdate="CASCADE", ondelete="CASCADE"))
+    pbx_route_id = Column(Integer, ForeignKey('pbx_routes.id',
+        onupdate="CASCADE", ondelete="CASCADE"))
     context = Column(Unicode(64), default=u'default')
     domain = Column(Unicode(128), default=u'sip.freepybx.org')
     field = Column(Unicode(128), default=u'destination_number')
@@ -456,10 +436,9 @@ class PbxCondition(Base):
 class PbxConditionTmpl(Base):
     __tablename__='pbx_condition_tmpl'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
-    pbx_route_type_id = Column(Integer, ForeignKey('pbx_route_types.id', onupdate="CASCADE", ondelete="CASCADE"))
+    pbx_route_type_id = Column(Integer, ForeignKey('pbx_route_types.id',
+        onupdate="CASCADE", ondelete="CASCADE"))
     context = Column(Unicode(64), default=u'default')
     domain = Column(Unicode(128), default=u'sip.freepybx.org')
     field = Column(Unicode(128), default=u'destination_number')
@@ -469,10 +448,9 @@ class PbxConditionTmpl(Base):
 class PbxAction(Base):
     __tablename__='pbx_actions'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
-    pbx_condition_id = Column(Integer, ForeignKey('pbx_conditions.id', onupdate="CASCADE", ondelete="CASCADE"))
+    pbx_condition_id = Column(Integer, ForeignKey('pbx_conditions.id',
+        onupdate="CASCADE", ondelete="CASCADE"))
     context = Column(Unicode(64), default=u'default')
     domain = Column(Unicode(128), default=u'sip.freepybx.org')
     is_authenticated = Column(Boolean, default=False)
@@ -487,10 +465,9 @@ class PbxAction(Base):
 class PbxActionTmpl(Base):
     __tablename__='pbx_action_tmpl'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
-    pbx_condition_tmpl_id = Column(Integer, ForeignKey('pbx_condition_tmpl.id', onupdate="CASCADE", ondelete="CASCADE"))
+    pbx_condition_tmpl_id = Column(Integer, ForeignKey('pbx_condition_tmpl.id',
+        onupdate="CASCADE", ondelete="CASCADE"))
     context = Column(Unicode(64), default=u'default')
     domain = Column(Unicode(128), default=u'sip.freepybx.org')
     is_authenticated = Column(Boolean, default=False)
@@ -504,8 +481,6 @@ class PbxActionTmpl(Base):
 
 class PbxGroup(Base):
     __tablename__='pbx_groups'
-
-    query = Session.query_property()
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     context = Column(Unicode(64), default=u'default')
@@ -521,10 +496,9 @@ class PbxGroup(Base):
 class PbxGroupMember(Base):
     __tablename__='pbx_group_members'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
-    pbx_group_id = Column(Integer, ForeignKey('pbx_groups.id', onupdate="CASCADE", ondelete="CASCADE"))
+    pbx_group_id = Column(Integer, ForeignKey('pbx_groups.id',
+        onupdate="CASCADE", ondelete="CASCADE"))
     extension  = Column(Unicode(15))
 
     def __init__(self, pbx_group_id, extension):
@@ -537,8 +511,6 @@ class PbxGroupMember(Base):
 
 class PbxEndpoint(Base):
     __tablename__='pbx_endpoints'
-
-    query = Session.query_property()
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     auth_id = Column(Unicode(64), nullable=False)
@@ -603,10 +575,9 @@ class PbxEndpoint(Base):
 class PbxDeviceType(Base):
     __tablename__='pbx_device_types'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
-    manufacturer_id = Column(Integer, ForeignKey('pbx_device_manufacturers.id', onupdate="CASCADE", ondelete="CASCADE"))
+    manufacturer_id = Column(Integer, ForeignKey('pbx_device_manufacturers.id',
+        onupdate="CASCADE", ondelete="CASCADE"))
     model = Column(Unicode(64))
     supported_firmware = Column(Unicode(255))
     cfg_template = Column(UnicodeText)
@@ -618,8 +589,6 @@ class PbxDeviceType(Base):
 class PbxDeviceManufacturer(Base):
     __tablename__='pbx_device_manufacturers'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     name = Column(Unicode(64))
     description = Column(Unicode(128))
@@ -628,8 +597,6 @@ class PbxDeviceManufacturer(Base):
 
 class PbxCdr(Base):
     __tablename__='cdr'
-
-    query = Session.query_property()
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     caller_id_name = Column(Unicode(64))
@@ -660,8 +627,6 @@ class PbxCdr(Base):
 class PbxDNC(Base):
     __tablename__='pbx_dnc'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     context = Column(Unicode(64), nullable=False)
     domain = Column(Unicode(128), nullable=False)
@@ -671,8 +636,6 @@ class PbxDNC(Base):
 
 class PbxConferenceBridge(Base):
     __tablename__='pbx_conference_bridges'
-
-    query = Session.query_property()
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     context = Column(Unicode(64), default=u'sip.freepybx.org')
@@ -684,8 +647,6 @@ class PbxConferenceBridge(Base):
 class PbxFax(Base):
     __tablename__='pbx_faxes'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     context = Column(Unicode(64), default=u'sip.freepybx.org')
     domain = Column(Unicode(128), default=u'sip.freepybx.org')
@@ -694,8 +655,6 @@ class PbxFax(Base):
 
 class PbxRegistration(Base):
     __tablename__='sip_registrations'
-
-    query = Session.query_property()
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     call_id = Column(Unicode(255))
@@ -725,8 +684,6 @@ class PbxRegistration(Base):
 class VoiceMail(Base):
     __tablename__='voicemail_msgs'
 
-    query = Session.query_property()
-
     created_epoch = Column(Integer, default=0)
     read_epoch = Column(Integer, default=0)
     username = Column(Unicode(255))
@@ -745,8 +702,6 @@ class VoiceMail(Base):
 
 class PbxDialog(Base):
     __tablename__='sip_dialogs'
-
-    query = Session.query_property()
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     call_id = Column(Unicode(255))
@@ -778,8 +733,6 @@ class PbxDialog(Base):
 
 class PbxChannel(Base):
     __tablename__='channels'
-
-    query = Session.query_property()
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     uuid = Column(Unicode(255))
@@ -818,19 +771,17 @@ class PbxChannel(Base):
 class PbxOutboundRoute(Base):
     __tablename__='pbx_outbound_routes'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     name = Column(Unicode(32))
-    customer_id = Column(Integer, ForeignKey('customers.id', onupdate="CASCADE", ondelete="CASCADE"))
-    gateway_id = Column(Integer, ForeignKey('pbx_gateways.id', onupdate="CASCADE", ondelete="CASCADE"))
+    customer_id = Column(Integer, ForeignKey('customers.id',
+        onupdate="CASCADE", ondelete="CASCADE"))
+    gateway_id = Column(Integer, ForeignKey('pbx_gateways.id',
+        onupdate="CASCADE", ondelete="CASCADE"))
     pattern = Column(Unicode(64), nullable=False)
 
 
 class PbxCallingRule(Base):
     __tablename__='pbx_calling_rules'
-
-    query = Session.query_property()
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     name = Column(Unicode(64))
@@ -839,10 +790,9 @@ class PbxCallingRule(Base):
 class PbxChannelLimit(Base):
     __tablename__='pbx_channel_limits'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
-    customer_id = Column(Integer, ForeignKey('customers.id', onupdate="CASCADE", ondelete="CASCADE"))
+    customer_id = Column(Integer, ForeignKey('customers.id',
+        onupdate="CASCADE", ondelete="CASCADE"))
     inbound_limit = Column(Integer, default=5)
     outbound_limit = Column(Integer, default=5)
     inbound_recording_path = Column(Unicode(255))
@@ -852,16 +802,18 @@ class PbxChannelLimit(Base):
 class e911Address(Base):
     __tablename__='e911_addresses'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
-    customer_id =  Column(Integer, ForeignKey('customers.id', onupdate="CASCADE", ondelete="CASCADE"))
+    customer_id =  Column(Integer, ForeignKey('customers.id',
+        onupdate="CASCADE", ondelete="CASCADE"))
     house_num = Column(Unicode(32))
     house_num_suffix = Column(Unicode(32))
-    prefix_directional = Column(Integer, ForeignKey('e911_directional_types.id', onupdate="CASCADE", ondelete="CASCADE"))
+    prefix_directional = Column(Integer, ForeignKey('e911_directional_types.id',
+        onupdate="CASCADE", ondelete="CASCADE"))
     street_name = Column(Unicode(32))
-    street_suffix = Column(Integer, ForeignKey('e911_street_types.id', onupdate="CASCADE", ondelete="CASCADE"))
-    post_directional = Column(Integer, ForeignKey('e911_directional_types.id', onupdate="CASCADE", ondelete="CASCADE"))
+    street_suffix = Column(Integer, ForeignKey('e911_street_types.id',
+        onupdate="CASCADE", ondelete="CASCADE"))
+    post_directional = Column(Integer, ForeignKey('e911_directional_types.id',
+        onupdate="CASCADE", ondelete="CASCADE"))
     msag_community = Column(Unicode(32))
     state_province = Column(Unicode(32))
     county_id = Column(Unicode(32))
@@ -871,15 +823,14 @@ class e911Address(Base):
     building = Column(Unicode(32))
     floor = Column(Unicode(32))
     unit_num = Column(Unicode(32))
-    unit_type = Column(Integer, ForeignKey('e911_unit_types.id', onupdate="CASCADE", ondelete="CASCADE"))
+    unit_type = Column(Integer, ForeignKey('e911_unit_types.id',
+        onupdate="CASCADE", ondelete="CASCADE"))
     location_description = Column(UnicodeText)
     editable = Column(Boolean, default=True)
 
 
 class e911DirectionalType(Base):
     __tablename__='e911_directional_types'
-
-    query = Session.query_property()
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     name = Column(Unicode(32))
@@ -888,16 +839,12 @@ class e911DirectionalType(Base):
 class e911UnitType(Base):
     __tablename__='e911_unit_types'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     name = Column(Unicode(32))
 
 
 class e911StreetType(Base):
     __tablename__='e911_street_types'
-
-    query = Session.query_property()
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     name = Column(Unicode(32))

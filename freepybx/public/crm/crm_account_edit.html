@@ -96,8 +96,6 @@
         dijit.byId("crm_lead_type_name").set("value", obj.crm_lead_type_id);
         dijit.byId("crm_account_crm_campaign_name").set("value", obj.crm_campaign_id);
         dijit.byId("status_type_name").set("value", obj.crm_account_status_type_id);
-        
-        
      }    
      
     function getCrmAccountByID() {
@@ -243,7 +241,7 @@
                 <tr>
                     <td valign="top"><strong>Active: </strong></td>
                     <td>
-                    <input type="text" name="active" id="crm_account_active" dojoType="dijit.form.CheckBox" />
+                    <input name="active" id="crm_account_active" dojoType="dijit.form.CheckBox" value="true" checked="false" />
                     </td>
                 </tr>   
                 <tr>

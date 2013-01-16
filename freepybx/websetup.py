@@ -36,8 +36,8 @@ def setup_app(command, conf, vars):
     if not pylons.test.pylonsapp:
         load_environment(conf.global_conf, conf.local_conf)
 
-    Base.metadata.drop_all(bind=Session.bind)
-    Base.metadata.create_all(bind=Session.bind)
+    Base.metadata.drop_all(bind=db.bind)
+    Base.metadata.create_all(bind=db.bind)
 
     # Create the tables if they don't already exist        
     # uncomment and adjust for initial setup..
@@ -64,134 +64,131 @@ def insert_data():
         s = PbxRouteType()
         s.name = key
         s.description = value
-        Session.add(s)
+        db.add(s)
 
     # Add initial admin with admin login rights
     admin_user = AdminUser(u'admin@freepybx.org',u'secretpass1',u'Admin',u'User')
-    Session.add(admin_user)
+    db.add(admin_user)
 
     admin_group = AdminGroup(u'system_admin',u'System administrators')
     admin_group.admin_users.append(admin_user)
-    Session.add(admin_group)
+    db.add(admin_group)
 
     admin_perm = AdminPermission(u'superuser',u'all access')
     admin_perm.admin_groups.append(admin_group)
-    Session.add(admin_perm)
+    db.add(admin_perm)
 
     pba = Group(u'pbx_admin', u'PBX Admins')
     pba.permissions.append(Permission(u'pbx_admin'))
-    Session.add(pba)
+    db.add(pba)
 
     pbe = Group(u'pbx_extension', u'PBX Extension Users')
     pbe.permissions.append(Permission(u'pbx_extension'))
-    Session.add(pbe)
+    db.add(pbe)
 
     pbb = Group(u'billing', u'Billing Administrators')
     pbb.permissions.append(Permission(u'pbx_admin'))
-    Session.add(pbb)
+    db.add(pbb)
 
     # Setup the default VoIP services as an example to get you started on the concept.
-    Session.add(BillingServiceType(u'VoIP Service', u'Voice over Internet Protocol Service'))
-    Session.add(VoipServiceType(u'VoIP PBX Service', u'Private Branch Exchange Service'))
-    Session.add(VoipServiceType(u'VoIP Extension Service', u'VoIP Extension'))
-    Session.add(VoipServiceType(u'VoIP Trunk Service', u'Voip Trunk'))
-    Session.add(VoipServiceType(u'DID', u'Direct Inward Dial Number'))
-    Session.add(VoipServiceType(u'8XX', u'8XX Number'))
+    db.add(BillingServiceType(u'VoIP Service', u'Voice over Internet Protocol Service'))
+    db.add(VoipServiceType(u'VoIP PBX Service', u'Private Branch Exchange Service'))
+    db.add(VoipServiceType(u'VoIP Extension Service', u'VoIP Extension'))
+    db.add(VoipServiceType(u'VoIP Trunk Service', u'Voip Trunk'))
+    db.add(VoipServiceType(u'DID', u'Direct Inward Dial Number'))
+    db.add(VoipServiceType(u'8XX', u'8XX Number'))
 
-    Session.add(BillingProductType(u'Voip Telephones'))
-    Session.add(BillingProductType(u'Voip ATA'))
+    db.add(BillingProductType(u'Voip Telephones'))
+    db.add(BillingProductType(u'Voip ATA'))
 
-    Session.add(BillingServiceFeeType(u'Tax', u'Local taxes'))
-    Session.add(BillingServiceFeeType(u'USF Fee', u'Local taxes'))
+    db.add(BillingServiceFeeType(u'Tax', u'Local taxes'))
+    db.add(BillingServiceFeeType(u'USF Fee', u'Local taxes'))
 
-    Session.add(ProviderBillingApiType(u'Credit Card Gateway', u'Charge customer card via credit card processing gateway.'))
-    Session.add(BillingCycleType(u'Monthly', u'Monthly Service'))
-    Session.add(BillingCycleType(u'Annual', u'Annual Service'))
-    Session.add(BillingCycleType(u'Prepay Pool', u'Prepay Service Deducted from account funds.'))
-    Session.add(PaymentType(u'Credit Card Auto Bill', u'Charged credit card via merchant gateway automatically.'))
-    Session.add(PaymentType(u'Credit Card By Employee', u'Manually charged credit card via merchant gateway by employee.'))
+    db.add(ProviderBillingApiType(u'Credit Card Gateway', u'Charge customer card via credit card processing gateway.'))
+    db.add(BillingCycleType(u'Monthly', u'Monthly Service'))
+    db.add(BillingCycleType(u'Annual', u'Annual Service'))
+    db.add(BillingCycleType(u'Prepay Pool', u'Prepay Service Deducted from account funds.'))
+    db.add(PaymentType(u'Credit Card Auto Bill', u'Charged credit card via merchant gateway automatically.'))
+    db.add(PaymentType(u'Credit Card By Employee', u'Manually charged credit card via merchant gateway by employee.'))
 
     tp = TicketPriority()
     tp.name = u'Critical'
     tp.description = u'Significant risk of negative financial or public relations impact. Significant systems degradation/loss.'
-    Session.add(tp)
-    Session.commit()
+    db.add(tp)
+    transaction.commit()
+
 
     tp = TicketPriority()
     tp.name = u'High'
     tp.description = u'Small risk of negative financial or public relations impact.'
-    Session.add(tp)
-    Session.commit()
+    db.add(tp)
+    transaction.commit()
 
     tp = TicketPriority()
     tp.name = u'Medium'
     tp.description = u'Verified, but isolated instance.'
-    Session.add(tp)
-    Session.commit()
+    db.add(tp)
+    transaction.commit()
 
     tp = TicketPriority()
     tp.name = u'Low'
     tp.description = u'Limited, but verified system instance.'
-    Session.add(tp)
-    Session.commit()
+    db.add(tp)
+    transaction.commit()
 
     tp = TicketStatus()
     tp.name = u'Open'
     tp.description = u'Modified since originally created.'
-    Session.add(tp)
-    Session.commit()
+    db.add(tp)
+    transaction.commit()
 
     tp = TicketStatus()
     tp.name = u'In Progress'
     tp.description = u'Currently being addressed.'
-    Session.add(tp)
-    Session.commit()
+    db.add(tp)
+    transaction.commit()
 
     tp = TicketStatus()
     tp.name = u'Closed'
     tp.description = u'Work required has been completed.'
-    Session.add(tp)
-    Session.commit()
+    db.add(tp)
+    transaction.commit()
 
     tp = TicketType()
     tp.name = u'PBX'
     tp.description = u'Feature not working.'
-    Session.add(tp)
-    Session.commit()
+    db.add(tp)
+    transaction.commit()
 
     tp = TicketType()
     tp.name = u'Feature Request'
     tp.description = u'New Feature Request.'
-    Session.add(tp)
-    Session.commit()
+    db.add(tp)
+    transaction.commit()
 
     tp = TicketType()
     tp.name = u'Device Connectivity'
     tp.description = u'Device Not Connecting/Authenticating.'
-    Session.add(tp)
-    Session.commit()
+    db.add(tp)
+    transaction.commit()
 
     tp = TicketType()
     tp.name = u'Network Related'
     tp.description = u'Not Connecting to switch.'
-    Session.add(tp)
-    Session.commit()
+    db.add(tp)
+    transaction.commit()
 
     tp = TicketType()
     tp.name = u'Call Detail'
     tp.description = u'Inncorrect Call Detail.'
-    Session.add(tp)
-    Session.commit()
+    db.add(tp)
+    transaction.commit()
 
     tp = TicketType()
     tp.name = u'Feature Request'
     tp.description = u'New Feature Request.'
-    Session.add(tp)
-    Session.commit()
-
-
-    Session.commit()
-    Session.flush()
+    db.add(tp)
+    transaction.commit()
 
 
 

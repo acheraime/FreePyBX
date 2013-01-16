@@ -18,16 +18,20 @@
     copyright notices, patent notices, disclaimers of warranty, or limitations
     of liability) contained within the Source Code Form of the Covered Software,
     except that You may alter any license notices to the extent required to
-    remedy known factual inaccuracies."""
+    remedy known factual inaccuracies.
+"""
 
+import transaction
 import datetime
 from datetime import datetime
+
 from sqlalchemy import ForeignKey, Column, Table
 from sqlalchemy.types import Integer, DateTime, Boolean, Unicode, UnicodeText, Float
 from sqlalchemy.orm import relation, synonym, relationship, backref
+
 from freepybx.model import user_groups, group_permissions, admin_user_groups, admin_group_permissions, \
         customer_contexts, condition_actions
-from freepybx.model.meta import Base, Session as db
+from freepybx.model.meta import Base, db
 from freepybx.model.pbx import PbxEndpoint, PbxContext, PbxProfile
 from freepybx.model.call_center import CallCenterAgent
 
@@ -37,8 +41,6 @@ log = logging.getLogger(__name__)
 
 class AdminUser(Base):
     __tablename__='admin_users'
-
-    query = db.query_property()
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     username = Column(Unicode(128), unique=True, nullable=False)
@@ -55,7 +57,7 @@ class AdminUser(Base):
 
     @property
     def name(self):
-        return self.first_name + ' ' + self.last_name
+        return str(self.first_name) + ' ' + str(self.last_name)
 
     @property
     def permissions(self):
@@ -77,7 +79,7 @@ class AdminUser(Base):
             user.last_login = now
             user.session_id = session.id
             user.remote_addr = request.environ["HTTP_REMOTE_EU"]
-            db.commit()
+            transaction.commit()
             db.flush()
 
         db.remove()
@@ -89,8 +91,6 @@ class AdminUser(Base):
 
 class AdminGroup(Base):
     __tablename__ = 'admin_groups'
-
-    query = db.query_property()
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     name = Column(Unicode(64), unique=True, nullable=False)
@@ -121,8 +121,6 @@ class AdminGroup(Base):
 
 class Provider(Base):
     __tablename__= 'providers'
-
-    query = db.query_property()
 
     def __init__(self, name=None, email=None):
         self.name = name
@@ -175,8 +173,6 @@ class Provider(Base):
 
 class Customer(Base):
     __tablename__= 'customers'
-
-    query = db.query_property()
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     name = Column(Unicode(100),nullable=False)
@@ -242,8 +238,6 @@ class Customer(Base):
 
 class User(Base):
     __tablename__='users'
-
-    query = db.query_property()
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     customer_name = Column(Unicode(255), nullable=True)
@@ -341,16 +335,8 @@ class User(Base):
             now = datetime.now()
             user.last_login = now
             user.session_id = session.id
-            user.remote_addr = request.environ["REMOTE_ADDR"]
-            db.commit()
-            db.flush()
-
-            if True:
-                s = Shift(session.id, user.id, 1)
-                db.add(s)
-                db.commit()
-                db.flush()
-        db.remove()
+            user.remote_addr = request.environ["HTTP_REMOTE_EU"]
+            transaction.commit()
 
     @classmethod
     def get_customer_name(class_, customer_id):
@@ -366,8 +352,6 @@ class User(Base):
 
 class Group(Base):
     __tablename__ = 'groups'
-
-    query = db.query_property()
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     name = Column(Unicode(64), unique=True, nullable=False)
@@ -398,8 +382,6 @@ class Group(Base):
 class Permission(Base):
     __tablename__='permissions'
 
-    query = db.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     name = Column(Unicode(32), default=u'Unknown')
     description = Column(Unicode(255), default=u'Unknown')
@@ -420,13 +402,11 @@ class Permission(Base):
 class AdminPermission(Base):
     __tablename__='admin_permissions'
 
-    query = db.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     name = Column(Unicode(32), default=u'Unknown')
     description = Column(Unicode(255), default=u'Unknown')
 
-    admin_groups =  relationship("AdminGroup", secondary=admin_group_permissions, backref='admin_permissions')
+    admin_groups = relationship("AdminGroup", secondary=admin_group_permissions, backref='admin_permissions')
 
     def __unicode__(self):
         return self.name
@@ -442,8 +422,6 @@ class AdminPermission(Base):
 class EmailAccount(Base):
     __tablename__='email_accounts'
 
-    query = db.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     user_id =  Column(Integer, ForeignKey('users.id', onupdate="CASCADE", ondelete="CASCADE"))
     customer_id =  Column(Integer, ForeignKey('customers.id', onupdate="CASCADE", ondelete="CASCADE"))
@@ -454,8 +432,6 @@ class EmailAccount(Base):
 
 class Contact(Base):
     __tablename__ = 'contacts'
-
-    query = db.query_property()
 
     def __init__(self, _first_name=None,_last_name=None,_email=None):
         self.first_name = _first_name
@@ -484,7 +460,6 @@ class Contact(Base):
     status = Column(Integer, default=1)
     lat_lon = Column(Unicode(100), default=u"0,0")
 
-
     def __str__(self):
         return '<%s>' % self.__class__.__name__
 
@@ -494,8 +469,6 @@ class Contact(Base):
 
 class Location(Base):
     __tablename__='locations'
-
-    query = db.query_property()
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     zip = Column(Unicode(5))
@@ -508,8 +481,6 @@ class Location(Base):
 class CustomerNote(Base):
     __tablename__='customer_notes'
 
-    query = db.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     customer_id =  Column(Integer, ForeignKey('customers.id', onupdate="CASCADE", ondelete="CASCADE"))
     created = Column(DateTime,default=datetime.now())
@@ -519,8 +490,6 @@ class CustomerNote(Base):
 
 class Ticket(Base):
     __tablename__='tickets'
-
-    query = db.query_property()
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     customer_id =  Column(Integer, ForeignKey('customers.id', onupdate="CASCADE", ondelete="CASCADE"))
@@ -543,8 +512,6 @@ class Ticket(Base):
 class TicketNote(Base):
     __tablename__='ticket_notes'
 
-    query = db.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     ticket_id = Column(Integer, ForeignKey('tickets.id', onupdate="CASCADE", ondelete="CASCADE"))
     user_id = Column(Integer, ForeignKey('users.id', onupdate="CASCADE", ondelete="CASCADE"))
@@ -556,8 +523,6 @@ class TicketNote(Base):
 class TicketPriority(Base):
     __tablename__='ticket_priorities'
 
-    query = db.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     name = Column(Unicode(128), default=u'Unknown')
     description = Column(Unicode(255), default=u'Unknown')
@@ -565,8 +530,6 @@ class TicketPriority(Base):
 
 class TicketType(Base):
     __tablename__='ticket_types'
-
-    query = db.query_property()
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     name = Column(Unicode(32), default=u'Unknown')
@@ -576,8 +539,6 @@ class TicketType(Base):
 class TicketStatus(Base):
     __tablename__='ticket_statuses'
 
-    query = db.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     name = Column(Unicode(32), default=u'Unknown')
     description = Column(Unicode(255), default=u'Unknown')
@@ -585,8 +546,6 @@ class TicketStatus(Base):
 
 class Shift(Base):
     __tablename__='shifts'
-
-    query = db.query_property()
 
     def __init__(self, session_id=None, user_id=None, type_id=1):
         self.session_id = session_id

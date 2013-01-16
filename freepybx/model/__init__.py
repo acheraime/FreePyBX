@@ -24,12 +24,13 @@
 
 from sqlalchemy import ForeignKey, Column, Table
 from sqlalchemy.types import Integer
-from freepybx.model.meta import Session, Base, metadata
+
+from freepybx.model.meta import db, Base, metadata
 
 def init_model(engine):
     """Call me before using any of the tables or classes in the model"""
-    Session.configure(bind=engine)
-    Base.query = Session.query_property()
+    db.configure(bind=engine, expire_on_commit=False)
+    Base.query = db.query_property()
     metadata = Base.metadata
 
 __all__ = ['Customer','User', 'AdminUser', 'Group', 'EmailAccount','Shift','PbxContext','PbxIVR','PbxIVROption',
@@ -39,7 +40,7 @@ __all__ = ['Customer','User', 'AdminUser', 'Group', 'EmailAccount','Shift','PbxC
            'CrmNote','CrmLog','PbxCdr','HelpCategory','Help','PbxConferenceBridge','PbxRegistration','PbxFax',
            'CallCenterQueue', 'CallCenterAgent', 'CallCenterTier', 'CallCenterCaller', 'VoiceMail', 'PbxChannel', 'PbxDialog',
            'CrmAccountStatusType', 'CrmGroup', 'CrmGroupMember', 'CrmCampaign','CrmLeadType', 'CrmCampaignGroup','CrmAccount',
-           'Base', 'Session', 'PbxAclBlacklist', 'Provider', 'e911Address', 'e911DirectionalType', 'admin_user_groups','admin_group_permissions',
+           'Base', 'db', 'PbxAclBlacklist', 'Provider', 'e911Address', 'e911DirectionalType', 'admin_user_groups','admin_group_permissions',
            'e911UnitType', 'e911StreetType', 'CustomerNote', 'Ticket', 'TicketPriority', 'TicketType', 'TicketStatus', 'TicketNote', 'AdminGroup',
            'user_groups', 'group_permissions', 'Permission', 'AdminPermission', 'customer_contexts','condition_actions',
            'PbxDeviceType', 'PbxDeviceManufacturer', 'BillingServiceType', 'VoipServiceType', 'BillingService', 'PbxOutboundRoute',

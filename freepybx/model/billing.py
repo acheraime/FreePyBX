@@ -27,7 +27,7 @@ from datetime import datetime
 from sqlalchemy import ForeignKey, Column, Table
 from sqlalchemy.types import Integer, DateTime, Boolean, Unicode, UnicodeText, Float, Numeric
 from sqlalchemy.orm import relation, synonym, relationship, backref
-from freepybx.model.meta import Session, Base, metadata
+from freepybx.model.meta import db, Base, metadata
 
 
 customer_services = Table('customer_services', metadata,
@@ -38,8 +38,6 @@ customer_services = Table('customer_services', metadata,
 
 class BillingService(Base):
     __tablename__='billing_services'
-
-    query = Session.query_property()
 
     def __init__(self, name=None, description=None):
         self.name = name
@@ -54,8 +52,6 @@ class BillingService(Base):
 
 class BillingServiceType(Base):
     __tablename__='billing_service_types'
-
-    query = Session.query_property()
 
     def __init__(self, name=None, description=None):
         self.name = name
@@ -75,8 +71,6 @@ class BillingServiceType(Base):
 class VoipService(Base):
     __tablename__='voip_services'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     customer_id = Column(Integer, ForeignKey('customers.id', onupdate='CASCADE', ondelete='CASCADE'))
     voip_service_plan_id = Column(Integer, ForeignKey('voip_service_plans.id', onupdate='CASCADE', ondelete='CASCADE'))
@@ -93,8 +87,6 @@ class VoipService(Base):
 class VoipServicePlan(Base):
     __tablename__='voip_service_plans'
 
-    query = Session.query_property()
-
     def __init__(self, name=None, description=None):
         self.name = name
         self.description = description
@@ -110,8 +102,6 @@ class VoipServicePlan(Base):
 class VoipServiceType(Base):
     __tablename__='voip_service_types'
 
-    query = Session.query_property()
-
     def __init__(self, name=None, description=None):
         self.name = name
         self.description = description
@@ -121,11 +111,8 @@ class VoipServiceType(Base):
     description = Column(Unicode(1024))
 
 
-
 class VoipExtensionServiceProfile(Base):
     __tablename__='voip_extension_service_profiles'
-
-    query = Session.query_property()
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     voip_service_id = Column(Integer, ForeignKey('voip_services.id', onupdate='CASCADE', ondelete='CASCADE'))
@@ -140,8 +127,6 @@ class VoipExtensionServiceProfile(Base):
 class VoipTrunkServiceProfile(Base):
     __tablename__='voip_trunk_service_profiles'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     voip_service_id = Column(Integer, ForeignKey('voip_services.id', onupdate='CASCADE', ondelete='CASCADE'))
     voip_service_policy_id = Column(Integer, default=0)
@@ -154,8 +139,6 @@ class VoipTrunkServiceProfile(Base):
 
 class VoipPbxServiceProfile(Base):
     __tablename__='pbx_voip_service_profiles'
-
-    query = Session.query_property()
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     voip_service_id = Column(Integer, ForeignKey('voip_services.id', onupdate='CASCADE', ondelete='CASCADE'))
@@ -180,8 +163,6 @@ class VoipPbxServiceProfile(Base):
 class VoipServicePolicy(Base):
     __tablename__='voip_service_policies'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     name = Column(Unicode(64))
     description = Column(UnicodeText)
@@ -198,8 +179,6 @@ class VoipServicePolicy(Base):
 class BillingServiceFee(Base):
     __tablename__='billing_service_fees'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     billing_service_fee_type_id = Column(Integer, ForeignKey('billing_service_fee_types.id', onupdate='CASCADE', ondelete='CASCADE'))
     billing_service_id = Column(Integer, ForeignKey('billing_services.id', onupdate='CASCADE', ondelete='CASCADE'))
@@ -215,8 +194,6 @@ class BillingServiceFee(Base):
 class BillingServiceFeeType(Base):
     __tablename__='billing_service_fee_types'
 
-    query = Session.query_property()
-
     def __init__(self, name=None, description=None):
         self.name = name
         self.description = description
@@ -230,8 +207,6 @@ class BillingServiceFeeType(Base):
 class BillingCycleType(Base):
     __tablename__='billing_cycle_types'
 
-    query = Session.query_property()
-
     def __init__(self, name=None, description=None):
         self.name = name
         self.description = description
@@ -244,8 +219,6 @@ class BillingCycleType(Base):
 class ProviderBillingProfile(Base):
     __tablename__='provider_billing_profiles'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     customer_id = Column(Integer, ForeignKey('customers.id', onupdate='CASCADE', ondelete='CASCADE'))
     provider_billing_gateway_id = Column(Integer, ForeignKey('provider_billing_gateways.id', onupdate='CASCADE', ondelete='CASCADE'))
@@ -253,8 +226,6 @@ class ProviderBillingProfile(Base):
 
 class BillingProduct(Base):
     __tablename__='billing_products'
-
-    query = Session.query_property()
 
     def __init__(self, name=None, description=None):
         self.name = name
@@ -270,8 +241,6 @@ class BillingProduct(Base):
 class BillingProductType(Base):
     __tablename__='billing_product_types'
 
-    query = Session.query_property()
-
     def __init__(self, name=None, description=None):
         self.name = name
         self.description = description
@@ -284,7 +253,7 @@ class BillingProductType(Base):
 class BillingProductFee(Base):
     __tablename__='billing_product_fees'
 
-    query = Session.query_property()
+
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     flat_fee = Column(Boolean, default=False)
@@ -298,8 +267,6 @@ class BillingProductFee(Base):
 class ProviderBillingGateway(Base):
     __tablename__='provider_billing_gateways'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     customer_id = Column(Integer, ForeignKey('customers.id', onupdate='CASCADE', ondelete='CASCADE'))
     name = Column(Unicode(64))
@@ -309,8 +276,6 @@ class ProviderBillingGateway(Base):
 
 class ProviderBillingApiType(Base):
     __tablename__='provider_billing_api_types'
-
-    query = Session.query_property()
 
     def __init__(self, name=None, description=None):
         self.name = name
@@ -324,8 +289,6 @@ class ProviderBillingApiType(Base):
 class AuthorizeNetAccount(Base):
     __tablename__='authorize_net_accounts'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     customer_id = Column(Integer, ForeignKey('customers.id', onupdate='CASCADE', ondelete='CASCADE'))
     api_username = Column(Unicode(128))
@@ -334,8 +297,6 @@ class AuthorizeNetAccount(Base):
 
 class Invoice(Base):
     __tablename__='invoices'
-
-    query = Session.query_property()
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     customer_id = Column(Integer, ForeignKey('customers.id', onupdate='CASCADE', ondelete='CASCADE'))
@@ -346,8 +307,6 @@ class Invoice(Base):
 
 class InvoiceItem(Base):
     __tablename__='invoice_items'
-
-    query = Session.query_property()
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     customer_id = Column(Integer, ForeignKey('customers.id', onupdate='CASCADE', ondelete='CASCADE'))
@@ -361,8 +320,6 @@ class InvoiceItem(Base):
 class Payment(Base):
     __tablename__='payments'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     invoice_id = Column(Integer, default=0)
     customer_id = Column(Integer, ForeignKey('customers.id', onupdate='CASCADE', ondelete='CASCADE'))
@@ -373,8 +330,6 @@ class Payment(Base):
 
 class PaymentType(Base):
     __tablename__='payment_types'
-
-    query = Session.query_property()
 
     def __init__(self, name=None, description=None):
         self.name = name

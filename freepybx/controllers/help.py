@@ -48,7 +48,7 @@ from simplejson import loads, dumps
 import simplejson as json
 from freepybx.model import meta
 from freepybx.model.meta import *
-from freepybx.model.meta import Session as db
+from freepybx.model.meta import db
 import simplejson as json
 from simplejson import loads, dumps
 import urllib

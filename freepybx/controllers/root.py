@@ -21,33 +21,40 @@
     except that You may alter any license notices to the extent required to
     remedy known factual inaccuracies.
 """
-
+import os
+import sys
+import math
+import urllib
+import urllib2
+import re
+import imaplib
 import logging
+import transaction
+
 from datetime import datetime
-from pylons import request, response, session, config, tmpl_context as c, url
-from pylons.controllers.util import abort, redirect
-from freepybx.lib.base import BaseController, render
-from freepybx.model import meta
-from freepybx.model.meta import *
-from freepybx.lib.validators import *
-from freepybx.lib.auth import *
-from freepybx.lib.util import *
-from genshi import HTML
-import shutil, os, sys, math, urllib, urllib2, re, imaplib
-from pylons.decorators.rest import restrict
-from genshi import HTML
+
 import formencode
 from formencode import validators
 from decorator import decorator
-from pylons.decorators.rest import restrict
-import formencode
-from formencode import validators
-from pylons.decorators import validate
+
+import simplejson as json
 from simplejson import loads, dumps
+
+from pylons import request, response, session, config, tmpl_context as c, url
+from pylons.controllers.util import abort, redirect
+from pylons.decorators.rest import restrict
+from pylons.decorators import validate
+
+from genshi import HTML
+
+from freepybx.lib.base import BaseController, render
 from freepybx.model import meta
 from freepybx.model.meta import *
-from freepybx.model.meta import Session as db
-import simplejson as json
+from freepybx.model.meta import db
+from freepybx.lib.validators import *
+from freepybx.lib.auth import *
+from freepybx.lib.util import *
+
 
 log = logging.getLogger(__name__)
 credential = HasCredential
@@ -94,7 +101,7 @@ class RootController(BaseController):
             return AuthenticationError("")
 
         if authenticate(username, password):
-            log.debug(session.id)
+            log.debug("#########################      %s        ###############################" % session.id)
         else:
             return self.login()
         return self.main()
@@ -152,15 +159,17 @@ class RootController(BaseController):
     def ticket_view(self, id):
         notes = []
         ticket = Ticket.query.filter_by(customer_id=session['customer_id']).filter(Ticket.id==int(id)).first()
-        u = User.query.filter_by(id=ticket.opened_by).first()
+        user = User.query.filter_by(id=ticket.opened_by).first()
 
         for note in TicketNote.query.filter_by(ticket_id=ticket.id).all():
-            notes.append({'id': note.id, 'ticket_id': note.ticket_id, 'user_id': note.user_id,
-                              'created': note.created.strftime("%m/%d/%Y %I:%M:%S %p"), 'subject': note.subject,
-                              'description': note.description})
+            notes.append({'id': note.id, 'ticket_id': note.ticket_id,
+                          'user_id': note.user_id,
+                          'created': note.created.strftime("%m/%d/%Y %I:%M:%S %p"),
+                          'subject': note.subject,
+                          'description': note.description})
         c.ticket = ticket
         c.notes = notes
-        c.u = u
+        c.u = user
         return render('pbx/ticket_view.html')
 
 

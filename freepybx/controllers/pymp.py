@@ -168,7 +168,7 @@ class PympController(BaseController):
         items = []
         id=1
         log.debug(id)
-        rows = meta.Session.query(Contact).filter_by(user_id=id).all()
+        rows = meta.db.query(Contact).filter_by(user_id=id).all()
 
         if rows:
             for row in rows:

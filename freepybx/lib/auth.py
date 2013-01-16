@@ -27,7 +27,7 @@ import logging
 from pylons import request, response, session, tmpl_context as c, url
 from pylons.controllers.util import abort, redirect
 from freepybx.model import *
-from freepybx.model.meta import Session as db
+from freepybx.model.meta import db
 from pylons.decorators.rest import restrict
 from genshi import HTML
 from freepybx.lib.auth import *
@@ -40,6 +40,7 @@ import pylons
 import simplejson as json
 from simplejson import loads, dumps
 import cgitb; cgitb.enable()
+import transaction
 
 log = logging.getLogger(__name__)
 
@@ -84,17 +85,13 @@ def authenticate(username, password):
       
     if auth_user and not auth_user.active: 
         return False
-       
-    log.info("authenticated user %s", auth_user.username)
 
     session["perms"] = auth_user.permissions
     session['group_id'] = auth_user.group_id
     session["user"] = auth_user     
     session.save()
     auth_user.register_login(username, session, request)
-    db.commit()
-    db.flush()
-    
+
     return True
 
 def authenticate_admin(username, password):
@@ -120,7 +117,6 @@ def authenticate_admin(username, password):
     session['user_id'] = auth_user.id
 
     auth_user.register_login(username, session, request)
-    db.commit()
     db.flush()
     session.save()
     return True
@@ -142,11 +138,11 @@ class HasCredential(object):
 
     def check(self):
         if 'user' in session:
-            row = User.query.filter(User.id==session['user_id']).filter_by(session_id=session.id).first()
-            if not row:
+            user = User.query.filter(User.id==session['user_id']).filter_by(session_id=session.id).first()
+            if not user:
                 session.invalidate()
                 raise AuthenticationError(self.error_msg)
-            c.perms = row.permissions
+            c.perms = user.permissions
             for p in c.perms:
                 for cred in self.credentials:
                     if str(cred) == str(p):

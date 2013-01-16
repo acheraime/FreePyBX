@@ -28,17 +28,16 @@ from datetime import datetime
 from sqlalchemy import ForeignKey, Column
 from sqlalchemy.types import Integer, DateTime, Boolean, Unicode, UnicodeText
 from sqlalchemy.orm import relation, synonym, relationship, backref
-from freepybx.model.meta import Session, Base
+from freepybx.model.meta import db, Base
 
 
 class HelpCategory(Base):
     __tablename__='help_categories'
 
-    query = Session.query_property()
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     name = Column(Unicode(128), nullable=False)
-    description = Column(UnicodeText, nullable=False, default=u'Nothing here to see folks. Please move away.')
+    description = Column(UnicodeText, nullable=False,
+        default=u'Nothing here to see folks.')
 
     def __init__(self, name=None, description=None):
         self.name = name
@@ -47,8 +46,6 @@ class HelpCategory(Base):
 
 class Help(Base):
     __tablename__='pbx_help'
-
-    query = Session.query_property()
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     category_id = Column(Integer, ForeignKey('help_categories.id', onupdate="CASCADE"))

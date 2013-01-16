@@ -21,37 +21,39 @@
     except that You may alter any license notices to the extent required to
     remedy known factual inaccuracies.
 """
-
+import os
+import cgitb; cgitb.enable()
+import urllib
 import logging
+
+import simplejson as json
+from simplejson import loads, dumps
+
 from pylons import request, response, session, tmpl_context as c, url
 from pylons.controllers.util import abort, redirect
+from pylons import config
+from pylons.decorators.rest import restrict
+from pylons.decorators import validate, jsonify
+
+import formencode
+from formencode import validators
+from decorator import decorator
+
+from genshi import HTML
+
+import formencode
+from formencode import validators
+
 from freepybx.lib.base import BaseController, render
 from freepybx.model import meta
 from freepybx.model.meta import *
-from freepybx.model.meta import Session as db
-from genshi import HTML
-from pylons import config
-from pylons.decorators.rest import restrict
-import formencode
-from formencode import validators
+from freepybx.model.meta import db
 from freepybx.lib.pymap.imap import Pymap
 from freepybx.lib.auth import *
 from freepybx.lib.forms import *
 from freepybx.lib.util import *
 from freepybx.lib.util import PbxError, DataInputError, PbxEncoder
 from freepybx.lib.validators import *
-from decorator import decorator
-from pylons.decorators.rest import restrict
-import formencode
-from formencode import validators
-from pylons.decorators import validate, jsonify
-from simplejson import loads, dumps
-import simplejson as json
-import os
-import simplejson as json
-from simplejson import loads, dumps
-import cgitb; cgitb.enable()
-import urllib
 
 logged_in = IsLoggedIn()
 super_user = IsSuperUser()
@@ -95,47 +97,51 @@ class ServicesController(BaseController):
         return render("services/service_add.html")
 
     @authorize(super_user)
+    @jsonify
     def billing_service_types(self):
         items=[]
-        for bs in BillingServiceType.query.all():
-            items.append({'id': bs.id, 'name': bs.name, 'description': bs.description})
+        try:
+            for billing_servicde_type in BillingServiceType.query.all():
+                items.append({'id': billing_servicde_type.id,
+                              'name': billing_servicde_type.name,
+                              'description': billing_servicde_type.description})
 
-        db.remove()
-
-        out = dict({'identifier': 'id', 'label': 'name', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json'),]
-
-        return response(request.environ, self.start_response)
+            db.remove()
+            return {'identifier': 'id', 'label': 'name', 'items': items}
+        except Exception, e:
+            return {'identifier': 'id', 'label': 'name', 'items': items, 'is_error': True, 'message': str(e)}
 
     @authorize(super_user)
+    @jsonify
     def services(self):
         items=[]
+        try:
+            for service in BillingService.query.all():
+                items.append({'id': service.id, 'name': service.name,
+                              'description': service.description,
+                              'billing_service_type_id': service.billing_service_type_id,
+                              'service_id': service.service_id})
 
-        for svc in BillingService.query.all():
-            items.append({'id': svc.id, 'name': svc.name, 'description': svc.description, 'billing_service_type_id': svc.billing_service_type_id,
-                          'service_id': svc.service_id})
+            db.remove()
+            return {'identifier': 'id', 'label': 'name', 'items': items}
 
-        db.remove()
+        except Exception, e:
+            return {'identifier': 'id', 'label': 'name', 'items': items, 'is_error': True, 'message': str(e)}
 
-        out = dict({'identifier': 'id', 'label': 'name', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json'),]
-
-        return response(request.environ, self.start_response)
 
     @authorize(super_user)
+    @jsonify
     def service_plans(self):
         items=[]
+        try:
+            for service in BillingService.query.all():
+                items.append({'id': service.id, 'name': service.name,
+                              'description': service.description,
+                              'billing_service_type_id': service.billing_service_type_id,
+                              'service_id': service.service_id})
 
-        for svc in BillingService.query.all():
-            items.append({'id': svc.id, 'name': svc.name, 'description': svc.description, 'billing_service_type_id': svc.billing_service_type_id,
-                          'service_id': svc.service_id})
+            db.remove()
+            return {'identifier': 'id', 'label': 'name', 'items': items}
 
-        db.remove()
-
-        out = dict({'identifier': 'id', 'label': 'name', 'items': items})
-        response = make_response(out)
-        response.headers = [("Content-type", 'application/json'),]
-
-        return response(request.environ, self.start_response)
+        except Exception, e:
+            return {'identifier': 'id', 'label': 'name', 'items': items, 'is_error': True, 'message': str(e)}
