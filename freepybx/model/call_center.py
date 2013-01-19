@@ -135,7 +135,8 @@ class CallCenterCaller(Base):
 class CallCenterTier(Base):
     __tablename__='call_center_tiers'
 
-    def __init__(self, queue=None, agent=None, state='Waiting', level=None, position=None):
+    def __init__(self, queue=None, agent=None,
+                 state='Waiting', level=None, position=None):
         self.queue = queue
         self.agent = agent
         self.state = state

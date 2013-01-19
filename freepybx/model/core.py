@@ -86,7 +86,8 @@ class AdminUser(Base):
 
     def __repr__(self):
         return "<AdminUser({0},{1},{2},{3},{4},{5},{6},{7},{8})>".format(
-            self.id,self.username, self.password, self.first_name,self.last_name,self.last_login,self.remote_addr,self.session_id,self.active)
+            self.id,self.username, self.password, self.first_name,
+            self.last_name,self.last_login,self.remote_addr,self.session_id,self.active)
 
 
 class AdminGroup(Base):

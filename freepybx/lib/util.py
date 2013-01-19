@@ -270,16 +270,22 @@ def get_type(id):
     return t.name
 
 def get_talk_time(ext):
-    rows =  db.execute("select coalesce(sum(billsec)/60,0) as mins from cdr where (caller_id_number=:ext or destination_number=:ext) "
-                       "and start_stamp between CURRENT_DATE and CURRENT_TIMESTAMP and bleg_uuid is not null and context = :context",{'ext':ext, 'context': session['context']})
+    rows =  db.execute("SELECT coalesce(sum(billsec)/60,0) AS mins "
+                       "FROM cdr "
+                       "WHERE (caller_id_number=:ext "
+                       "OR destination_number=:ext) "
+                       "AND start_stamp BETWEEN CURRENT_DATE "
+                       "AND CURRENT_TIMESTAMP "
+                       "AND bleg_uuid IS NOT null "
+                       "AND context = :context", {'ext':ext, 'context': session['context']})
     r = rows.fetchone()
     return r.mins
 
 def get_volume(ext):
-    rows =  db.execute("select count(*) as ct "
-                       "from cdr where  (caller_id_number=:ext or destination_number=:ext) "
-                       "and start_stamp between CURRENT_DATE "
-                       "and CURRENT_TIMESTAMP and bleg_uuid is not null and context = :context",{'ext':ext, 'context': session['context']})
+    rows =  db.execute("SELECT count(*) AS ct "
+                       "FROM cdr WHERE (caller_id_number=:ext OR destination_number=:ext) "
+                       "AND start_stamp BETWEEN CURRENT_DATE "
+                       "AND CURRENT_TIMESTAMP AND bleg_uuid IS NOT null AND context = :context", {'ext':ext, 'context': session['context']})
     r = rows.fetchone()
     return r.ct
 
@@ -318,8 +324,7 @@ def delete_virtual_extension(extension):
             for condition in PbxCondition.query.filter_by(pbx_route_id=route.id).all():
                 PbxAction.query.filter_by(pbx_condition_id=condition.id).delete()
                 PbxCondition.query.filter_by(pbx_route_id=route.id).delete()
-            PbxRoute.query.filter(PbxRoute.pbx_route_type_id==2).\
-            filter(PbxRoute.name==ext.extension).filter(PbxRoute.context==session['context']).delete()
+            PbxRoute.query.filter(PbxRoute.pbx_route_type_id==2).filter(PbxRoute.name==ext.extension).filter(PbxRoute.context==session['context']).delete()
         for sg in PbxGroup.query.filter_by(context=session['context']).all():
             PbxGroupMember.query.filter_by(pbx_group_id=sg.id).filter_by(extension=extension).delete()
         PbxVirtualExtension.query.filter(PbxVirtualExtension.extension==extension).filter(PbxVirtualExtension.context==session['context']).delete()
@@ -327,15 +332,12 @@ def delete_virtual_extension(extension):
     return True
 
 def delete_virtual_mailbox(extension):
-    for ext in PbxVirtualMailbox.query.filter(PbxVirtualMailbox.extension==extension)\
-    .filter(PbxVirtualMailbox.context==session['context']).all():
-        for route in PbxRoute.query.filter(PbxRoute.pbx_route_type_id==3).\
-        filter(PbxRoute.name==ext.extension).filter(PbxRoute.context==session['context']).all():
+    for ext in PbxVirtualMailbox.query.filter(PbxVirtualMailbox.extension==extension).filter(PbxVirtualMailbox.context==session['context']).all():
+        for route in PbxRoute.query.filter(PbxRoute.pbx_route_type_id==3).filter(PbxRoute.name==ext.extension).filter(PbxRoute.context==session['context']).all():
             for condition in PbxCondition.query.filter_by(pbx_route_id=route.id).all():
                 PbxAction.query.filter_by(pbx_condition_id=condition.id).delete()
                 PbxCondition.query.filter_by(pbx_route_id=route.id).delete()
-            PbxRoute.query.filter(PbxRoute.pbx_route_type_id==3).\
-            filter(PbxRoute.name==ext.extension).filter(PbxRoute.context==session['context']).delete()
+            PbxRoute.query.filter(PbxRoute.pbx_route_type_id==3).filter(PbxRoute.name==ext.extension).filter(PbxRoute.context==session['context']).delete()
         for sg in PbxGroup.query.filter_by(context=session['context']).all():
             PbxGroupMember.query.filter_by(pbx_group_id=sg.id).filter_by(extension=extension).delete()
         PbxVirtualMailbox.query.filter(PbxVirtualMailbox.extension==extension).filter(PbxVirtualMailbox.context==session['context']).delete()

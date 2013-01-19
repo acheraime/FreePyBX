@@ -206,8 +206,9 @@ class PbxController(BaseController):
             about the users endpoints and for things like gateways for the 
             profile, group pointers, as well as our custom stuff like virtual
             mailbox extensions. All specific to XML. Needed for registrations 
-            and XML. """
+            and XML.
 
+        """
         try:
             if request.params.has_key('purpose'):
                 if request.params["purpose"] == "gateways":
@@ -2618,7 +2619,7 @@ class PbxController(BaseController):
                           'city': customer.city, 'state': customer.state, 'zip': customer.zip,
                           'tel': customer.tel, 'url': customer.url, 'active': customer.active, 'context': customer.context, 'has_crm': customer.has_crm,
                           'has_call_center': customer.has_call_center, 'contact_name': customer.contact_name, 'contact_phone': customer.contact_phone,
-                          'contact_mobile': customer.contact_mobile, 'contact_title': customer.contact_title, 'contact_email': customer.contact_email, 'notes': row.notes})
+                          'contact_mobile': customer.contact_mobile, 'contact_title': customer.contact_title, 'contact_email': customer.contact_email, 'notes': customer.notes})
 
             return {'identifier': 'id', 'label': 'name', 'items': items}
 

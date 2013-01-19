@@ -73,6 +73,7 @@ class CredentialError(Exception):
     def __init__(self, message=None):
         Exception.__init__(self, message or self.message)
 
+
 class AdminController(BaseController):
     """Admin controller:
 
@@ -664,7 +665,7 @@ class AdminController(BaseController):
             gateway.reg_id = form_result.get('reg_id', 1)
             gateway.contact_params = form_result.get('contact_params', u'tport=tcp')
 
-            db.add(gw)
+            db.add(gateway)
             transaction.commit()
 
         except validators.Invalid, error:
@@ -936,6 +937,7 @@ class AdminController(BaseController):
             shutil.copyfileobj(myfile.file, permanent_file)
             myfile.file.close()
             permanent_file.close()
+
         except:
             return "Error uploading file. The administrator has been contacted."
 

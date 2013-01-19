@@ -42,7 +42,6 @@
     dojo.require("dijit.form.FilteringSelect");
     dojo.require("dojo.data.ItemFileReadStore");
 
-
     function gatewayHandler() {
         if(dijit.byId("gateway_add_form").validate()) {
             dojo.xhrPost({
@@ -63,7 +62,6 @@
             });
         }
     }
-
 </script>
 <div dojoType="dojo.data.ItemFileReadStore" jsId="profileStore" url="/admin/profiles_id"></div>
 <div dojoType="dojo.data.ItemFileReadStore" jsId="contextStore" url="/admin/context_store"></div>

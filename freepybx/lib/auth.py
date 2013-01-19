@@ -142,10 +142,9 @@ class HasCredential(object):
             if not user:
                 session.invalidate()
                 raise AuthenticationError(self.error_msg)
-            c.perms = user.permissions
-            for p in c.perms:
+            for perm in user.permissions:
                 for cred in self.credentials:
-                    if str(cred) == str(p):
+                    if str(cred) == str(perm.name):
                         return True
             raise AuthenticationError(self.error_msg)
         else:

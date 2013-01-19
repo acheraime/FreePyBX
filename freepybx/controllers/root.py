@@ -98,11 +98,9 @@ class RootController(BaseController):
             password = form_result["password"]
             shift_start = form_result.get('shift_start', False)
         except:
-            return AuthenticationError("")
+            return AuthenticationError("User not logged in.")
 
-        if authenticate(username, password):
-            log.debug("#########################      %s        ###############################" % session.id)
-        else:
+        if not authenticate(username, password):
             return self.login()
         return self.main()
 

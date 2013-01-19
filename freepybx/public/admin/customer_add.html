@@ -42,7 +42,6 @@
     function showHelp(category) {
         dijit.byId('help_dlg').set('href', '/help/'+category)
         dijit.byId('help_dlg').show();
-
     }
 
     var gatewayStore = new dojo.data.ItemFileWriteStore({url: '/admin/gateways'});

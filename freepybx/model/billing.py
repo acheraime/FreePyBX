@@ -31,49 +31,56 @@ from freepybx.model.meta import db, Base, metadata
 
 
 customer_services = Table('customer_services', metadata,
-    Column('customer_id', Integer, ForeignKey('customers.id', onupdate='CASCADE', ondelete='CASCADE')),
-    Column('billing_service_id', Integer, ForeignKey('billing_services.id', onupdate='CASCADE', ondelete='CASCADE'))
+    Column('customer_id', Integer, ForeignKey('customers.id',
+        onupdate='CASCADE', ondelete='CASCADE')),
+    Column('billing_service_id', Integer, ForeignKey('billing_services.id',
+        onupdate='CASCADE', ondelete='CASCADE'))
 )
 
 
 class BillingService(Base):
     __tablename__='billing_services'
 
-    def __init__(self, name=None, description=None):
-        self.name = name
-        self.description = description
-
     id = Column(Integer, autoincrement=True, primary_key=True)
-    billing_service_type_id = Column(Integer, ForeignKey('billing_service_types.id', onupdate='CASCADE', ondelete='CASCADE'))
+    billing_service_type_id = Column(Integer, ForeignKey('billing_service_types.id',
+        onupdate='CASCADE', ondelete='CASCADE'))
     service_id = Column(Integer, default=0)
     name = Column(Unicode(64))
     description = Column(Unicode(1024))
+
+    def __init__(self, name=None, description=None):
+        self.name = name
+        self.description = description
 
 
 class BillingServiceType(Base):
     __tablename__='billing_service_types'
 
-    def __init__(self, name=None, description=None):
-        self.name = name
-        self.description = description
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     name = Column(Unicode(64))
     description = Column(Unicode(1024))
+
+    billing_service = relationship('BillingService', backref='billing_service_types')
+
+    def __init__(self, name=None, description=None):
+        self.name = name
+        self.description = description
 
     def __repr__(self):
         return '<BillingServiceType({0},{1},{2},{3})>'.format(
             self.id,self.billing_service_type_id, self.name, self.description)
 
-    billing_service = relationship('BillingService', backref='billing_service_types')
+
 
 
 class VoipService(Base):
     __tablename__='voip_services'
 
     id = Column(Integer, autoincrement=True, primary_key=True)
-    customer_id = Column(Integer, ForeignKey('customers.id', onupdate='CASCADE', ondelete='CASCADE'))
-    voip_service_plan_id = Column(Integer, ForeignKey('voip_service_plans.id', onupdate='CASCADE', ondelete='CASCADE'))
+    customer_id = Column(Integer, ForeignKey('customers.id',
+        onupdate='CASCADE', ondelete='CASCADE'))
+    voip_service_plan_id = Column(Integer, ForeignKey('voip_service_plans.id',
+        onupdate='CASCADE', ondelete='CASCADE'))
     name = Column(Unicode(64))
     description = Column(Unicode(1024))
     created = Column(DateTime,default=datetime.now())
@@ -87,35 +94,37 @@ class VoipService(Base):
 class VoipServicePlan(Base):
     __tablename__='voip_service_plans'
 
-    def __init__(self, name=None, description=None):
-        self.name = name
-        self.description = description
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     name = Column(Unicode(64))
     description = Column(Unicode(1024))
-    voip_service_type_id = Column(Integer, ForeignKey('voip_service_types.id', onupdate='CASCADE', ondelete='CASCADE'))
+    voip_service_type_id = Column(Integer, ForeignKey('voip_service_types.id',
+        onupdate='CASCADE', ondelete='CASCADE'))
 
     service_profile_id = Column(Integer)
+
+    def __init__(self, name=None, description=None):
+        self.name = name
+        self.description = description
 
 
 class VoipServiceType(Base):
     __tablename__='voip_service_types'
 
-    def __init__(self, name=None, description=None):
-        self.name = name
-        self.description = description
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     name = Column(Unicode(64))
     description = Column(Unicode(1024))
+
+    def __init__(self, name=None, description=None):
+        self.name = name
+        self.description = description
 
 
 class VoipExtensionServiceProfile(Base):
     __tablename__='voip_extension_service_profiles'
 
     id = Column(Integer, autoincrement=True, primary_key=True)
-    voip_service_id = Column(Integer, ForeignKey('voip_services.id', onupdate='CASCADE', ondelete='CASCADE'))
+    voip_service_id = Column(Integer, ForeignKey('voip_services.id',
+        onupdate='CASCADE', ondelete='CASCADE'))
     voip_service_policy_id = Column(Integer, default=0)
     included_minutes_enforced = Column(Boolean, default=False)
     included_minutes = Column(Integer, default=0)
@@ -128,7 +137,8 @@ class VoipTrunkServiceProfile(Base):
     __tablename__='voip_trunk_service_profiles'
 
     id = Column(Integer, autoincrement=True, primary_key=True)
-    voip_service_id = Column(Integer, ForeignKey('voip_services.id', onupdate='CASCADE', ondelete='CASCADE'))
+    voip_service_id = Column(Integer, ForeignKey('voip_services.id',
+        onupdate='CASCADE', ondelete='CASCADE'))
     voip_service_policy_id = Column(Integer, default=0)
     max_trunks = Column(Integer, default=0)
     included_minutes = Column(Integer, default=0)
@@ -141,7 +151,8 @@ class VoipPbxServiceProfile(Base):
     __tablename__='pbx_voip_service_profiles'
 
     id = Column(Integer, autoincrement=True, primary_key=True)
-    voip_service_id = Column(Integer, ForeignKey('voip_services.id', onupdate='CASCADE', ondelete='CASCADE'))
+    voip_service_id = Column(Integer, ForeignKey('voip_services.id',
+        onupdate='CASCADE', ondelete='CASCADE'))
     voip_service_policy_id = Column(Integer, default=0)
     name = Column(Unicode(64))
     description = Column(UnicodeText)
@@ -180,8 +191,10 @@ class BillingServiceFee(Base):
     __tablename__='billing_service_fees'
 
     id = Column(Integer, autoincrement=True, primary_key=True)
-    billing_service_fee_type_id = Column(Integer, ForeignKey('billing_service_fee_types.id', onupdate='CASCADE', ondelete='CASCADE'))
-    billing_service_id = Column(Integer, ForeignKey('billing_services.id', onupdate='CASCADE', ondelete='CASCADE'))
+    billing_service_fee_type_id = Column(Integer, ForeignKey('billing_service_fee_types.id',
+        onupdate='CASCADE', ondelete='CASCADE'))
+    billing_service_id = Column(Integer, ForeignKey('billing_services.id',
+        onupdate='CASCADE', ondelete='CASCADE'))
     name = Column(Unicode(64))
     description = Column(Unicode(128))
     flat_fee_amount = Column(Numeric, default=0)
@@ -194,66 +207,67 @@ class BillingServiceFee(Base):
 class BillingServiceFeeType(Base):
     __tablename__='billing_service_fee_types'
 
-    def __init__(self, name=None, description=None):
-        self.name = name
-        self.description = description
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     name = Column(Unicode(64))
 
-    billing_service_fee = relationship('BillingServiceFee', backref='billing_service_fee_types')
+    billing_service_fee = relationship('BillingServiceFee',
+        backref='billing_service_fee_types')
+
+    def __init__(self, name=None, description=None):
+        self.name = name
+        self.description = description
 
 
 class BillingCycleType(Base):
     __tablename__='billing_cycle_types'
 
-    def __init__(self, name=None, description=None):
-        self.name = name
-        self.description = description
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     name = Column(Unicode(64))
     description = Column(Unicode(128))
 
+    def __init__(self, name=None, description=None):
+        self.name = name
+        self.description = description
 
 class ProviderBillingProfile(Base):
     __tablename__='provider_billing_profiles'
 
     id = Column(Integer, autoincrement=True, primary_key=True)
-    customer_id = Column(Integer, ForeignKey('customers.id', onupdate='CASCADE', ondelete='CASCADE'))
-    provider_billing_gateway_id = Column(Integer, ForeignKey('provider_billing_gateways.id', onupdate='CASCADE', ondelete='CASCADE'))
+    customer_id = Column(Integer, ForeignKey('customers.id',
+        onupdate='CASCADE', ondelete='CASCADE'))
+    provider_billing_gateway_id = Column(Integer, ForeignKey('provider_billing_gateways.id',
+        onupdate='CASCADE', ondelete='CASCADE'))
 
 
 class BillingProduct(Base):
     __tablename__='billing_products'
 
-    def __init__(self, name=None, description=None):
-        self.name = name
-        self.description = description
-
     id = Column(Integer, autoincrement=True, primary_key=True)
-    customer_id = Column(Integer, ForeignKey('customers.id', onupdate='CASCADE', ondelete='CASCADE'))
+    customer_id = Column(Integer, ForeignKey('customers.id',
+        onupdate='CASCADE', ondelete='CASCADE'))
     name = Column(Unicode(64))
     description = Column(Unicode(1024))
     amount = Column(Numeric, default=0)
+
+    def __init__(self, name=None, description=None):
+        self.name = name
+        self.description = description
 
 
 class BillingProductType(Base):
     __tablename__='billing_product_types'
 
-    def __init__(self, name=None, description=None):
-        self.name = name
-        self.description = description
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     name = Column(Unicode(64))
     description = Column(Unicode(1024))
 
+    def __init__(self, name=None, description=None):
+        self.name = name
+        self.description = description
+
 
 class BillingProductFee(Base):
     __tablename__='billing_product_fees'
-
-
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     flat_fee = Column(Boolean, default=False)
@@ -268,7 +282,8 @@ class ProviderBillingGateway(Base):
     __tablename__='provider_billing_gateways'
 
     id = Column(Integer, autoincrement=True, primary_key=True)
-    customer_id = Column(Integer, ForeignKey('customers.id', onupdate='CASCADE', ondelete='CASCADE'))
+    customer_id = Column(Integer, ForeignKey('customers.id',
+        onupdate='CASCADE', ondelete='CASCADE'))
     name = Column(Unicode(64))
     description = Column(Unicode(128))
     billing_api_type_id = Column(Integer, default=1)
@@ -277,20 +292,21 @@ class ProviderBillingGateway(Base):
 class ProviderBillingApiType(Base):
     __tablename__='provider_billing_api_types'
 
-    def __init__(self, name=None, description=None):
-        self.name = name
-        self.description = description
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     name = Column(Unicode(64))
     description = Column(Unicode(128))
+
+    def __init__(self, name=None, description=None):
+        self.name = name
+        self.description = description
 
 
 class AuthorizeNetAccount(Base):
     __tablename__='authorize_net_accounts'
 
     id = Column(Integer, autoincrement=True, primary_key=True)
-    customer_id = Column(Integer, ForeignKey('customers.id', onupdate='CASCADE', ondelete='CASCADE'))
+    customer_id = Column(Integer, ForeignKey('customers.id',
+        onupdate='CASCADE', ondelete='CASCADE'))
     api_username = Column(Unicode(128))
     transaction_id = Column(Unicode(128))
 
@@ -299,9 +315,11 @@ class Invoice(Base):
     __tablename__='invoices'
 
     id = Column(Integer, autoincrement=True, primary_key=True)
-    customer_id = Column(Integer, ForeignKey('customers.id', onupdate='CASCADE', ondelete='CASCADE'))
+    customer_id = Column(Integer, ForeignKey('customers.id',
+        onupdate='CASCADE', ondelete='CASCADE'))
     created = Column(DateTime,default=datetime.now())
-    billing_service_id = Column(Integer, ForeignKey('billing_services.id', onupdate='CASCADE', ondelete='CASCADE'))
+    billing_service_id = Column(Integer, ForeignKey('billing_services.id',
+        onupdate='CASCADE', ondelete='CASCADE'))
     payment_id = Column(Integer, default=0)
 
 
@@ -309,9 +327,12 @@ class InvoiceItem(Base):
     __tablename__='invoice_items'
 
     id = Column(Integer, autoincrement=True, primary_key=True)
-    customer_id = Column(Integer, ForeignKey('customers.id', onupdate='CASCADE', ondelete='CASCADE'))
-    invoice_id = Column(Integer, ForeignKey('invoices.id', onupdate='CASCADE', ondelete='CASCADE'))
-    billing_service_id = Column(Integer, ForeignKey('billing_services.id', onupdate='CASCADE', ondelete='CASCADE'))
+    customer_id = Column(Integer, ForeignKey('customers.id',
+        onupdate='CASCADE', ondelete='CASCADE'))
+    invoice_id = Column(Integer, ForeignKey('invoices.id',
+        onupdate='CASCADE', ondelete='CASCADE'))
+    billing_service_id = Column(Integer, ForeignKey('billing_services.id',
+        onupdate='CASCADE', ondelete='CASCADE'))
     created = Column(DateTime,default=datetime.now())
     line_description = Column(Unicode(1024))
     amount = Column(Numeric, default=0)
@@ -322,8 +343,10 @@ class Payment(Base):
 
     id = Column(Integer, autoincrement=True, primary_key=True)
     invoice_id = Column(Integer, default=0)
-    customer_id = Column(Integer, ForeignKey('customers.id', onupdate='CASCADE', ondelete='CASCADE'))
-    payment_type_id = Column(Integer, ForeignKey('payment_types.id', onupdate='CASCADE', ondelete='CASCADE'))
+    customer_id = Column(Integer, ForeignKey('customers.id',
+        onupdate='CASCADE', ondelete='CASCADE'))
+    payment_type_id = Column(Integer, ForeignKey('payment_types.id',
+        onupdate='CASCADE', ondelete='CASCADE'))
     created = Column(DateTime,default=datetime.now())
     amount = Column(Numeric, default=0)
 
@@ -331,10 +354,10 @@ class Payment(Base):
 class PaymentType(Base):
     __tablename__='payment_types'
 
-    def __init__(self, name=None, description=None):
-        self.name = name
-        self.description = description
-
     id = Column(Integer, autoincrement=True, primary_key=True)
     name = Column(Unicode(64))
     description = Column(Unicode(128))
+
+    def __init__(self, name=None, description=None):
+        self.name = name
+        self.description = description
