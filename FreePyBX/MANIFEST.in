@@ -1,3 +1,0 @@
-include freepybx/config/deployment.ini_tmpl
-recursive-include freepybx/public *
-recursive-include freepybx/templates *
