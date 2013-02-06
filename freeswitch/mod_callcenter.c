@@ -2231,7 +2231,6 @@ void *SWITCH_THREAD_FUNC cc_agent_dispatch_thread_run(switch_thread_t *thread, v
 	return NULL;
 }
 
-
 void cc_agent_dispatch_thread_start(void)
 {
 	switch_thread_t *thread;
@@ -2251,12 +2250,12 @@ void cc_agent_dispatch_thread_start(void)
 		return;
 	}
 
-	switch_threadattr_create(&thd_attr, globals.pool);
-	switch_threadattr_detach_set(thd_attr, 1);
-	switch_threadattr_stacksize_set(thd_attr, SWITCH_THREAD_STACKSIZE);
-        switch_threadattr_priority_set(thd_attr, SWITCH_PRI_IMPORTANT)
-	//switch_threadattr_priority_increase(thd_attr);
-	switch_thread_create(&thread, thd_attr, cc_agent_dispatch_thread_run, NULL, globals.pool);
+    switch_threadattr_create(&thd_attr, globals.pool);
+    switch_threadattr_detach_set(thd_attr, 1);
+    switch_threadattr_stacksize_set(thd_attr, SWITCH_THREAD_STACKSIZE);
+    switch_threadattr_priority_set(thd_attr, SWITCH_PRI_REALTIME);
+    switch_thread_create(&thread, thd_attr, cc_agent_dispatch_thread_run, NULL, globals.pool);
+
 }
 
 struct member_thread_helper {
