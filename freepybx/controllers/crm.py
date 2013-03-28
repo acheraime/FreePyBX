@@ -37,6 +37,10 @@ import logging
 import pprint
 import cgi
 import cgitb; cgitb.enable()
+<<<<<<< HEAD
+=======
+import transaction
+>>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
 
 import simplejson as json
 from simplejson import loads, dumps
@@ -152,10 +156,17 @@ class CrmController(BaseController):
                 crm_group_member.extension = extension
 
                 db.add(crm_group_member)
+<<<<<<< HEAD
                 db.commit()
 
         except validators.Invalid, error:
             db.rollback()
+=======
+                transaction.commit()
+
+        except validators.Invalid, error:
+            transaction.abort()
+>>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
             return 'Error: %s' % error
 
         return "Successfully added CRM Campaign."
@@ -180,9 +191,15 @@ class CrmController(BaseController):
                     crm_group_member.context = session['context']
 
                     db.add(crm_group_member)
+<<<<<<< HEAD
                     db.commit()
         except:
             db.rollback()
+=======
+                    transaction.commit()
+        except:
+            transaction.abort()
+>>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
             return "Error updating campaign."
 
         return "Successfully updated campaign."
@@ -263,10 +280,17 @@ class CrmController(BaseController):
             crm_account.crm_lead_type_id = form_result.get("crm_lead_type_name")
             
             db.add(crm_account)
+<<<<<<< HEAD
             db.commit()
 
         except validators.Invalid, error:
             db.rollback()
+=======
+            transaction.commit()
+
+        except validators.Invalid, error:
+            transaction.abort()
+>>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
             return 'Error: %s' % error
         
         return "Successfully added CRM account."
@@ -355,7 +379,11 @@ class CrmController(BaseController):
             crm_account.crm_lead_type_id = form_result.get("crm_lead_type_name")
             
             db.add(crm_account)
+<<<<<<< HEAD
             db.commit()
+=======
+            transaction.commit()
+>>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
 
         except validators.Invalid, error:
              return 'Error: %s' % error
@@ -371,10 +399,17 @@ class CrmController(BaseController):
             crm_note.created = datetime.now()
 
             db.add(crm_note)
+<<<<<<< HEAD
             db.commit()
 
         except validators.Invalid, error:
             db.rollback()
+=======
+            transaction.commit()
+
+        except validators.Invalid, error:
+            transaction.abort()
+>>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
             return 'Error: %s' % error
 
         return "Successfully added CRM notes."

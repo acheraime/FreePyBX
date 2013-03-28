@@ -1,4 +1,4 @@
-FreePyBX-Proprietary
+FreePyBX
 ====================
 
 FreePyBX

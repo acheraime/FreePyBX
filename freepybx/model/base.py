@@ -24,12 +24,20 @@
 
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
+<<<<<<< HEAD
+=======
+from zope.sqlalchemy import ZopeTransactionExtension
+>>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
 
 # DBSession Object
 
 __all__=['DBBase']
 
+<<<<<<< HEAD
 db = scoped_session(sessionmaker())
+=======
+db = scoped_session(sessionmaker(extension=ZopeTransactionExtension()))
+>>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
 
 class DBBase(object):
     """Base class for DB Model"""

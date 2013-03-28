@@ -18,13 +18,21 @@
     copyright notices, patent notices, disclaimers of warranty, or limitations 
     of liability) contained within the Source Code Form of the Covered Software, 
     except that You may alter any license notices to the extent required to 
+<<<<<<< HEAD
     remedy known factual inaccuracies.
 """
+=======
+    remedy known factual inaccuracies."""
+>>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
 
 import logging
 import pylons.test
 from pylons import config
 from freepybx.config.environment import load_environment
+<<<<<<< HEAD
+=======
+import transaction
+>>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
 from freepybx.model import *
 
 log = logging.getLogger(__name__)
@@ -36,7 +44,11 @@ def setup_app(command, conf, vars):
     if not pylons.test.pylonsapp:
         load_environment(conf.global_conf, conf.local_conf)
 
+<<<<<<< HEAD
     Base.metadata.drop_all(bind=db.bind)
+=======
+    #Base.metadata.drop_all(bind=db.bind)
+>>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
     Base.metadata.create_all(bind=db.bind)
 
     # Create the tables if they don't already exist        
@@ -115,77 +127,133 @@ def insert_data():
     tp.name = u'Critical'
     tp.description = u'Significant risk of negative financial or public relations impact. Significant systems degradation/loss.'
     db.add(tp)
+<<<<<<< HEAD
     db.commit()
+=======
+    transaction.commit()
+>>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
 
 
     tp = TicketPriority()
     tp.name = u'High'
     tp.description = u'Small risk of negative financial or public relations impact.'
     db.add(tp)
+<<<<<<< HEAD
     db.commit()
+=======
+    transaction.commit()
+>>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
 
     tp = TicketPriority()
     tp.name = u'Medium'
     tp.description = u'Verified, but isolated instance.'
     db.add(tp)
+<<<<<<< HEAD
     db.commit()
+=======
+    transaction.commit()
+>>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
 
     tp = TicketPriority()
     tp.name = u'Low'
     tp.description = u'Limited, but verified system instance.'
     db.add(tp)
+<<<<<<< HEAD
     db.commit()
+=======
+    transaction.commit()
+>>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
 
     tp = TicketStatus()
     tp.name = u'Open'
     tp.description = u'Modified since originally created.'
     db.add(tp)
+<<<<<<< HEAD
     db.commit()
+=======
+    transaction.commit()
+>>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
 
     tp = TicketStatus()
     tp.name = u'In Progress'
     tp.description = u'Currently being addressed.'
     db.add(tp)
+<<<<<<< HEAD
     db.commit()
+=======
+    transaction.commit()
+>>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
 
     tp = TicketStatus()
     tp.name = u'Closed'
     tp.description = u'Work required has been completed.'
     db.add(tp)
+<<<<<<< HEAD
     db.commit()
+=======
+    transaction.commit()
+>>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
 
     tp = TicketType()
     tp.name = u'PBX'
     tp.description = u'Feature not working.'
     db.add(tp)
+<<<<<<< HEAD
     db.commit()
+=======
+    transaction.commit()
+>>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
 
     tp = TicketType()
     tp.name = u'Feature Request'
     tp.description = u'New Feature Request.'
     db.add(tp)
+<<<<<<< HEAD
     db.commit()
+=======
+    transaction.commit()
+>>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
 
     tp = TicketType()
     tp.name = u'Device Connectivity'
     tp.description = u'Device Not Connecting/Authenticating.'
     db.add(tp)
+<<<<<<< HEAD
     db.commit()
+=======
+    transaction.commit()
+>>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
 
     tp = TicketType()
     tp.name = u'Network Related'
     tp.description = u'Not Connecting to switch.'
     db.add(tp)
+<<<<<<< HEAD
     db.commit()
+=======
+    transaction.commit()
+>>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
 
     tp = TicketType()
     tp.name = u'Call Detail'
     tp.description = u'Inncorrect Call Detail.'
     db.add(tp)
+<<<<<<< HEAD
     db.commit()
+=======
+    transaction.commit()
+>>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
 
     tp = TicketType()
     tp.name = u'Feature Request'
     tp.description = u'New Feature Request.'
     db.add(tp)
+<<<<<<< HEAD
     db.commit()
+=======
+    transaction.commit()
+
+
+
+
+>>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
