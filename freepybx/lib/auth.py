@@ -40,7 +40,6 @@ import pylons
 import simplejson as json
 from simplejson import loads, dumps
 import cgitb; cgitb.enable()
-import transaction
 
 log = logging.getLogger(__name__)
 

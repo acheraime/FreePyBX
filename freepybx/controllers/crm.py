@@ -37,7 +37,6 @@ import logging
 import pprint
 import cgi
 import cgitb; cgitb.enable()
-import transaction
 
 import simplejson as json
 from simplejson import loads, dumps
@@ -153,10 +152,10 @@ class CrmController(BaseController):
                 crm_group_member.extension = extension
 
                 db.add(crm_group_member)
-                transaction.commit()
+                db.commit()
 
         except validators.Invalid, error:
-            transaction.abort()
+            db.rollback()
             return 'Error: %s' % error
 
         return "Successfully added CRM Campaign."
@@ -181,9 +180,9 @@ class CrmController(BaseController):
                     crm_group_member.context = session['context']
 
                     db.add(crm_group_member)
-                    transaction.commit()
+                    db.commit()
         except:
-            transaction.abort()
+            db.rollback()
             return "Error updating campaign."
 
         return "Successfully updated campaign."
@@ -264,10 +263,10 @@ class CrmController(BaseController):
             crm_account.crm_lead_type_id = form_result.get("crm_lead_type_name")
             
             db.add(crm_account)
-            transaction.commit()
+            db.commit()
 
         except validators.Invalid, error:
-            transaction.abort()
+            db.rollback()
             return 'Error: %s' % error
         
         return "Successfully added CRM account."
@@ -356,7 +355,7 @@ class CrmController(BaseController):
             crm_account.crm_lead_type_id = form_result.get("crm_lead_type_name")
             
             db.add(crm_account)
-            transaction.commit()
+            db.commit()
 
         except validators.Invalid, error:
              return 'Error: %s' % error
@@ -372,10 +371,10 @@ class CrmController(BaseController):
             crm_note.created = datetime.now()
 
             db.add(crm_note)
-            transaction.commit()
+            db.commit()
 
         except validators.Invalid, error:
-            transaction.abort()
+            db.rollback()
             return 'Error: %s' % error
 
         return "Successfully added CRM notes."

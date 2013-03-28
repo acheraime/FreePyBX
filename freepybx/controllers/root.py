@@ -29,9 +29,9 @@ import urllib2
 import re
 import imaplib
 import logging
-import transaction
 
 from datetime import datetime
+from genshi import HTML
 
 import formencode
 from formencode import validators
@@ -44,8 +44,6 @@ from pylons import request, response, session, config, tmpl_context as c, url
 from pylons.controllers.util import abort, redirect
 from pylons.decorators.rest import restrict
 from pylons.decorators import validate
-
-from genshi import HTML
 
 from freepybx.lib.base import BaseController, render
 from freepybx.model import meta

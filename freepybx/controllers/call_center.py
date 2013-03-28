@@ -24,7 +24,6 @@ import os
 import sys
 import urllib, urllib2
 import simplejson as json
-import transaction
 import pprint
 import os, sys
 import logging
@@ -130,7 +129,7 @@ class CallCenterController(BaseController):
                 os.makedirs(dir)
 
         except validators.Invalid, error:
-            transaction.abort()
+            db.rollback()
             return 'Error: %s.' % error
 
         route = PbxRoute()
@@ -144,7 +143,7 @@ class CallCenterController(BaseController):
         route.pbx_to_id = ccq.id
 
         db.add(route)
-        transaction.commit()
+        db.commit()
 
         return "Successfully added Call Center queue "+form_result['name']+"."
 
@@ -176,10 +175,10 @@ class CallCenterController(BaseController):
             ccq.announce_sound = form_result.get('announce_sound').split(",")[1]
             ccq.announce_frequency = form_result.get('announce_frequency')
 
-            transaction.commit()
+            db.commit()
 
         except validators.Invalid, error:
-            transaction.abort()
+            db.rollback()
             return 'Error: %s.' % error
 
         return "Successfully updated Call Center queue "+ccq.name+"."
@@ -231,12 +230,12 @@ class CallCenterController(BaseController):
             CallCenterTier.query.filter(CallCenterTier.queue_id==queue.id).delete()
             CallCenterQueue.query.filter(CallCenterQueue.id==q.id).delete()
 
-            transaction.commit()
+            db.commit()
 
             return "Successfully removed queue."
 
         except Exception, e:
-            transaction.abort()
+            db.rollback()
             return "Error: %s" % e
 
     @authorize(logged_in)
@@ -316,10 +315,10 @@ class CallCenterController(BaseController):
             cca.pbx_endpoint_id = endpoint.id
 
             db.add(cca)
-            transaction.commit()
+            db.commit()
 
         except validators.Invalid, error:
-            transaction.abort()
+            db.rollback()
             return 'Error: %s.' % error
 
         return "Successfully added agent."
@@ -347,10 +346,10 @@ class CallCenterController(BaseController):
             cca.user_id = endpoint.user_id
             cca.pbx_endpoint_id = endpoint.id
 
-            transaction.commit()
+            db.commit()
 
         except validators.Invalid, error:
-            transaction.abort()
+            db.rollback()
             return 'Error: %s.' % error
 
         return "Successfully edited agent."
@@ -361,10 +360,10 @@ class CallCenterController(BaseController):
 
         try:
             CallCenterAgent.query.filter_by(id=request.params.get('id', 0)).delete()
-            transaction.commit()
+            db.commit()
 
         except:
-            transaction.abort()
+            db.rollback()
             return "Error deleting agent."
 
         return  "Successfully deleted agent."
@@ -395,10 +394,10 @@ class CallCenterController(BaseController):
                 fsa = CallCenterAgent.query.filter(CallCenterAgent.name==str(i['extension'])+"@"+str(session['context'])).first()
                 fsa.status = i['status']
 
-                transaction.commit()
+                db.commit()
 
         except DataInputError, error:
-            transaction.abort()
+            db.rollback()
             return 'Error: %s' % error
 
         return "Successfully update agent."
@@ -447,10 +446,10 @@ class CallCenterController(BaseController):
             cct.domain = session['context']
 
             db.add(cct)
-            transaction.commit()
+            db.commit()
 
         except validators.Invalid, error:
-            transaction.abort()
+            db.rollback()
             return 'Error: %s.' % error
 
         return "Successfully created tier agent."
@@ -469,10 +468,10 @@ class CallCenterController(BaseController):
                 tier.level = i['level']
                 tier.position = i['position']
 
-                transaction.commit()
+                db.commit()
 
         except DataInputError, error:
-            transaction.abort()
+            db.rollback()
             return 'Error: %s' % error
 
         return "Sucessfully updated agent tiers."
@@ -483,10 +482,10 @@ class CallCenterController(BaseController):
 
         try:
             CallCenterTier.query.filter_by(id=request.params.get('id', 0)).delete()
-            transaction.commit()
+            db.commit()
 
         except:
-            transaction.abort()
+            db.rollback()
             return "Error deleting tier agent."
 
         return  "Successfully deleted tier agent."

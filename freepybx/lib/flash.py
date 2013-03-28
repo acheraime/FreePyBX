@@ -48,5 +48,4 @@ class Flash(object):
             return True
         return False
 
-
 flash = Flash()

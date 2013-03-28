@@ -18,13 +18,13 @@
     copyright notices, patent notices, disclaimers of warranty, or limitations 
     of liability) contained within the Source Code Form of the Covered Software, 
     except that You may alter any license notices to the extent required to 
-    remedy known factual inaccuracies."""
+    remedy known factual inaccuracies.
+"""
 
 import logging
 import pylons.test
 from pylons import config
 from freepybx.config.environment import load_environment
-import transaction
 from freepybx.model import *
 
 log = logging.getLogger(__name__)
@@ -115,81 +115,77 @@ def insert_data():
     tp.name = u'Critical'
     tp.description = u'Significant risk of negative financial or public relations impact. Significant systems degradation/loss.'
     db.add(tp)
-    transaction.commit()
+    db.commit()
 
 
     tp = TicketPriority()
     tp.name = u'High'
     tp.description = u'Small risk of negative financial or public relations impact.'
     db.add(tp)
-    transaction.commit()
+    db.commit()
 
     tp = TicketPriority()
     tp.name = u'Medium'
     tp.description = u'Verified, but isolated instance.'
     db.add(tp)
-    transaction.commit()
+    db.commit()
 
     tp = TicketPriority()
     tp.name = u'Low'
     tp.description = u'Limited, but verified system instance.'
     db.add(tp)
-    transaction.commit()
+    db.commit()
 
     tp = TicketStatus()
     tp.name = u'Open'
     tp.description = u'Modified since originally created.'
     db.add(tp)
-    transaction.commit()
+    db.commit()
 
     tp = TicketStatus()
     tp.name = u'In Progress'
     tp.description = u'Currently being addressed.'
     db.add(tp)
-    transaction.commit()
+    db.commit()
 
     tp = TicketStatus()
     tp.name = u'Closed'
     tp.description = u'Work required has been completed.'
     db.add(tp)
-    transaction.commit()
+    db.commit()
 
     tp = TicketType()
     tp.name = u'PBX'
     tp.description = u'Feature not working.'
     db.add(tp)
-    transaction.commit()
+    db.commit()
 
     tp = TicketType()
     tp.name = u'Feature Request'
     tp.description = u'New Feature Request.'
     db.add(tp)
-    transaction.commit()
+    db.commit()
 
     tp = TicketType()
     tp.name = u'Device Connectivity'
     tp.description = u'Device Not Connecting/Authenticating.'
     db.add(tp)
-    transaction.commit()
+    db.commit()
 
     tp = TicketType()
     tp.name = u'Network Related'
     tp.description = u'Not Connecting to switch.'
     db.add(tp)
-    transaction.commit()
+    db.commit()
 
     tp = TicketType()
     tp.name = u'Call Detail'
     tp.description = u'Inncorrect Call Detail.'
     db.add(tp)
-    transaction.commit()
+    db.commit()
 
     tp = TicketType()
     tp.name = u'Feature Request'
     tp.description = u'New Feature Request.'
     db.add(tp)
-    transaction.commit()
-
-
-
-
+    db.commit()

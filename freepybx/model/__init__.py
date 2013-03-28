@@ -24,7 +24,6 @@
 
 from sqlalchemy import ForeignKey, Column, Table
 from sqlalchemy.types import Integer
-
 from freepybx.model.meta import db, Base, metadata
 
 def init_model(engine):
@@ -48,7 +47,6 @@ __all__ = ['Customer','User', 'AdminUser', 'Group', 'EmailAccount','Shift','PbxC
            'BillingServiceFee', 'BillingServiceFeeType', 'BillingCycleType', 'ProviderBillingProfile', 'VoipServicePlan',
            'ProviderBillingGateway', 'ProviderBillingApiType', 'AuthorizeNetAccount', 'Invoice', 'InvoiceItem', 'Payment',
            'PaymentType', 'BillingProduct', 'BillingProductType', 'BillingProductFee', 'PbxDidVendor', 'PbxDidPool', 'PbxCallingRule']
-
 
 user_groups = Table('user_groups', metadata,
     Column('user_id', Integer, ForeignKey('users.id', onupdate="CASCADE", ondelete="CASCADE")),

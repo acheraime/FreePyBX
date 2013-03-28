@@ -22,7 +22,6 @@
     remedy known factual inaccuracies.
 """
 
-
 import formencode
 from formencode import validators
 import shutil, os, sys
@@ -39,13 +38,11 @@ from simplejson import loads, dumps
 from webob import Request, Response
 import simplejson as json
 from zope.sqlalchemy import ZopeTransactionExtension
-import transaction
 from itertools import chain
 from freepybx.model import *
 from util import *
 from freepybx.model.meta import db
 import re
-
 
 __all__=['CustomerForm', 'PbxBlacklistedForm', 'GroupForm', 'FaxForm', 'TTSForm',
          'IVRForm', 'IVREditForm','ConferenceForm', 'CIDForm', 'ExtensionForm',
@@ -59,7 +56,6 @@ __all__=['CustomerForm', 'PbxBlacklistedForm', 'GroupForm', 'FaxForm', 'TTSForm'
          'QueueEditForm','AgentEditForm', 'DIDForm', 'GatewayForm', 'ProfileForm',
          'ContextEditForm','ContextForm', 'AdminEditUserForm', 'TicketForm',
          'TicketNoteForm','GroupEditForm','VirtualMailboxEditForm', 'OutboundRouteForm']
-
 
 
 def get_mimetype(path):

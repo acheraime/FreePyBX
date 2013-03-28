@@ -21,7 +21,6 @@
     remedy known factual inaccuracies.
 """
 
-import transaction
 import datetime
 from datetime import datetime
 
@@ -79,10 +78,7 @@ class AdminUser(Base):
             user.last_login = now
             user.session_id = session.id
             user.remote_addr = request.environ["HTTP_REMOTE_EU"]
-            transaction.commit()
-            db.flush()
-
-        db.remove()
+            db.commit()
 
     def __repr__(self):
         return "<AdminUser({0},{1},{2},{3},{4},{5},{6},{7},{8})>".format(
@@ -337,7 +333,7 @@ class User(Base):
             user.last_login = now
             user.session_id = session.id
             user.remote_addr = request.environ["HTTP_REMOTE_EU"]
-            transaction.commit()
+            db.commit()
 
     @classmethod
     def get_customer_name(class_, customer_id):
