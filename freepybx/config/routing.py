@@ -26,11 +26,7 @@
     The more specific and detailed routes should be defined first so they
     may take precedent over the more generic routes. For more information
     refer to the routes manual at http://routes.groovie.org/docs/
-<<<<<<< HEAD
 """
-=======
-    """
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
 from routes import Mapper
 
 def make_map(config):
