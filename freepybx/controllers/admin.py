@@ -26,10 +26,6 @@ import formencode
 import shutil
 import urllib
 import logging
-<<<<<<< HEAD
-=======
-import transaction
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
 import cgitb; cgitb.enable(format='text')
 
 from pylons import config
@@ -231,17 +227,10 @@ class AdminController(BaseController):
             for i in w['modified']:
                 customer = Customer.query.filter_by(id=i['id']).first()
                 customer.active = i['active']
-<<<<<<< HEAD
                 db.commit()
 
         except DataInputError, error:
             db.rollback()
-=======
-                transaction.commit()
-
-        except DataInputError, error:
-            transaction.abort()
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
             return 'Error: %s' % error
 
         return "Successfully updated Customer."
@@ -297,17 +286,10 @@ class AdminController(BaseController):
                 form_result.get('context'), form_result.get('domain'), form_result.get('t38', False), form_result.get('e911', False),
                 form_result.get('cnam', False), True))
 
-<<<<<<< HEAD
             db.commit()
 
         except validators.Invalid, error:
             db.rollback()
-=======
-            transaction.commit()
-
-        except validators.Invalid, error:
-            transaction.abort()
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
             return 'Error: %s' % error
 
         return "Successfully created customer."
@@ -356,11 +338,7 @@ class AdminController(BaseController):
             customer.outbound_channel_limit = form_result.get('outbound_channel_limit')
             customer.channel_audio = form_result.get('channel_audio')
 
-<<<<<<< HEAD
             db.commit()
-=======
-            transaction.commit()
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
 
             return "Successfully edited customer."
 
@@ -376,17 +354,10 @@ class AdminController(BaseController):
                 customer = Customer.query.filter_by(id=i['id']).first()
                 customer.active = i['active']
 
-<<<<<<< HEAD
                 db.commit()
 
         except DataInputError, error:
             db.rollback()
-=======
-                transaction.commit()
-
-        except DataInputError, error:
-            transaction.abort()
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
             return 'Error: %s' % error
 
         return "Successfully updated Customer."
@@ -488,9 +459,9 @@ class AdminController(BaseController):
                               'ext_rtp_ip': profile.ext_rtp_ip,
                               'ext_sip_ip': profile.ext_sip_ip,
                               'sip_port': profile.sip_port})
-    
+
             return {'identifier': 'id', 'label': 'name', 'items': items}
-    
+
         except Exception, e:
             return {'identifier': 'id', 'label': 'name', 'items': items, 'is_error': True, 'message': str(e)}
 
@@ -499,15 +470,10 @@ class AdminController(BaseController):
     def profiles_ids(self, **kw):
         items=[]
         try:
-<<<<<<< HEAD
             for profile in  PbxProfile.query.all():
                 items.append({'id': profile.id, 'name': profile.name, 'ext_rtp_ip': profile.ext_rtp_ip,
                               'ext_sip_ip': profile.ext_sip_ip, 'sip_port': profile.sip_port})
-=======
-            for row in  PbxProfile.query.all():
-                items.append({'id': row.id, 'name': row.name, 'ext_rtp_ip': row.ext_rtp_ip, 'ext_sip_ip': row.ext_sip_ip, 'sip_port': row.sip_port})
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
-    
+
             return {'identifier': 'id', 'label': 'name', 'items': items}
 
         except Exception, e:
@@ -559,17 +525,10 @@ class AdminController(BaseController):
             profile.minimum_session_expires = form_result.get('minimum_session_expires', 120)
 
             db.add(profile)
-<<<<<<< HEAD
             db.commit()
 
         except validators.Invalid, error:
             db.rollback()
-=======
-            transaction.commit()
-
-        except validators.Invalid, error:
-            transaction.abort()
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
             return 'Validation Error: %s' % error
 
         return "Successfully added profile."
@@ -618,17 +577,10 @@ class AdminController(BaseController):
             profile.minimum_session_expires = form_result.get('minimum_session_expires', 120)
 
             db.add(profile)
-<<<<<<< HEAD
             db.commit()
 
         except validators.Invalid, error:
             db.rollback()
-=======
-            transaction.commit()
-
-        except validators.Invalid, error:
-            transaction.abort()
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
             return 'Validation Error: %s' % error
 
         return "Successfully updated profile."
@@ -714,17 +666,10 @@ class AdminController(BaseController):
             gateway.contact_params = form_result.get('contact_params', u'tport=tcp')
 
             db.add(gateway)
-<<<<<<< HEAD
             db.commit()
 
         except validators.Invalid, error:
             db.rollback()
-=======
-            transaction.commit()
-
-        except validators.Invalid, error:
-            transaction.abort()
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
             return 'Error: %s' % error
 
         return "Successfully added gateway."
@@ -756,17 +701,10 @@ class AdminController(BaseController):
             gateway.contact_params = form_result.get('contact_params', u'tport=tcp')
 
             db.add(gateway)
-<<<<<<< HEAD
             db.commit()
 
         except validators.Invalid, error:
             db.rollback()
-=======
-            transaction.commit()
-
-        except validators.Invalid, error:
-            transaction.abort()
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
             return 'Error: %s' % error
 
         return "Successfully edited gateway."
@@ -782,17 +720,10 @@ class AdminController(BaseController):
                 gateway.register = i['register']
                 gateway.pbx_profile_id = profile.id
 
-<<<<<<< HEAD
                 db.commit()
 
         except DataInputError, error:
             db.rollback()
-=======
-                transaction.commit()
-
-        except DataInputError, error:
-            transaction.abort()
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
             return 'Error: %s' % error
 
         return "Successfully updated Gateway."
@@ -802,17 +733,10 @@ class AdminController(BaseController):
 
         try:
             PbxGateway.query.filter_by(id=request.params.get("id")).delete()
-<<<<<<< HEAD
             db.commit()
 
         except Exception, e:
             db.rollback()
-=======
-            transaction.commit()
-
-        except Exception, e:
-            transaction.abort()
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
             return "Exception: %s" % e
 
         return "Successfully deleted gateway."
@@ -822,19 +746,11 @@ class AdminController(BaseController):
     def outbound_routes(self, **kw):
         items=[]
         try:
-<<<<<<< HEAD
             for outbound_route in db.query(PbxOutboundRoute.id, PbxOutboundRoute.name, PbxOutboundRoute.customer_id, PbxOutboundRoute.gateway_id, PbxOutboundRoute.pattern,
                                 Customer.name).filter(PbxOutboundRoute.customer_id==Customer.id).all():
                 items.append({'id': outbound_route[0],'name': outbound_route[1], 'customer_id': outbound_route[2],
                               'gateway_id': outbound_route[3], 'pattern': outbound_route[4], 'customer_name': outbound_route[5],
                               'gateway': get_gateway(outbound_route[3])})
-=======
-            for row in db.query(PbxOutboundRoute.id, PbxOutboundRoute.name, PbxOutboundRoute.customer_id, PbxOutboundRoute.gateway_id, PbxOutboundRoute.pattern,
-                                Customer.name).filter(PbxOutboundRoute.customer_id==Customer.id).all():
-                items.append({'id': row[0],'name': row[1], 'customer_id': row[2],
-                              'gateway_id': row[3], 'pattern': row[4], 'customer_name': row[5],
-                              'gateway': get_gateway(row[3])})
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
 
             return {'identifier': 'id', 'label': 'name', 'items': items}
 
@@ -846,19 +762,11 @@ class AdminController(BaseController):
     def outroute_by_id(self, id, **kw):
         items=[]
         try:
-<<<<<<< HEAD
             for outbound_route in db.query(PbxOutboundRoute.id, PbxOutboundRoute.name, PbxOutboundRoute.customer_id, PbxOutboundRoute.gateway_id, PbxOutboundRoute.pattern,
                 Customer.name).filter(PbxOutboundRoute.customer_id==Customer.id).filter(PbxOutboundRoute.id==id).all():
                 items.append({'id': outbound_route[0],'name': outbound_route[1], 'customer_id': outbound_route[2],
                               'gateway_id': outbound_route[3], 'pattern': outbound_route[4], 'customer_name': outbound_route[5],
                               'gateway': get_gateway(outbound_route[3])})
-=======
-            for row in db.query(PbxOutboundRoute.id, PbxOutboundRoute.name, PbxOutboundRoute.customer_id, PbxOutboundRoute.gateway_id, PbxOutboundRoute.pattern,
-                Customer.name).filter(PbxOutboundRoute.customer_id==Customer.id).filter(PbxOutboundRoute.id==id).all():
-                items.append({'id': row[0],'name': row[1], 'customer_id': row[2],
-                              'gateway_id': row[3], 'pattern': row[4], 'customer_name': row[5],
-                              'gateway': get_gateway(row[3])})
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
 
             return {'identifier': 'id', 'label': 'name', 'items': items}
 
@@ -878,17 +786,10 @@ class AdminController(BaseController):
             outbound_route.pattern = form_result.get('pattern')
 
             db.add(outbound_route)
-<<<<<<< HEAD
             db.commit()
 
         except validators.Invalid, error:
             db.rollback()
-=======
-            transaction.commit()
-
-        except validators.Invalid, error:
-            transaction.abort()
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
             return 'Error: %s' % error
 
         return "Successfully added outbound route."
@@ -905,17 +806,10 @@ class AdminController(BaseController):
             outbound_route.gateway_id = form_result.get('gateway_id')
             outbound_route.pattern = form_result.get('pattern')
 
-<<<<<<< HEAD
             db.commit()
 
         except validators.Invalid, error:
             db.rollback()
-=======
-            transaction.commit()
-
-        except validators.Invalid, error:
-            transaction.abort()
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
             return 'Error: %s' % error
 
         return "Successfully edited outbound route."
@@ -924,17 +818,10 @@ class AdminController(BaseController):
     def del_outroute(self, **kw):
         try:
             PbxOutboundRoute.query.filter_by(id=request.params.get('id')).delete()
-<<<<<<< HEAD
             db.commit()
 
         except validators.Invalid, error:
             db.rollback()
-=======
-            transaction.commit()
-
-        except validators.Invalid, error:
-            transaction.abort()
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
             return 'Error: %s' % error
 
         return "Successfully deleted outbound route."
@@ -944,16 +831,10 @@ class AdminController(BaseController):
     def dids(self):
         items=[]
         try:
-<<<<<<< HEAD
             for did in db.query(PbxDid.id, PbxDid.did, Customer.name, Customer.id, Customer.context,
                         PbxDid.active, PbxDid.t38, PbxDid.cnam, PbxDid.e911).filter(Customer.id==PbxDid.customer_id).order_by(PbxDid.did).all():
                 items.append({'did': did[1],'customer_name': did[2], 'customer_id': did[3],
                               'context': did[4], 'active': did[5], 't38': did[6], 'cnam': did[7], 'e911': did[8]})
-=======
-            for row in db.query(PbxDid.id, PbxDid.did, Customer.name, Customer.id, Customer.context,
-                        PbxDid.active, PbxDid.t38, PbxDid.cnam, PbxDid.e911).filter(Customer.id==PbxDid.customer_id).order_by(PbxDid.did).all():
-                items.append({'did': row[1],'customer_name': row[2], 'customer_id': row[3], 'context': row[4], 'active': row[5], 't38': row[6], 'cnam': row[7], 'e911': row[8]})
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
 
             return {'identifier': 'did', 'label': 'did', 'items': items}
 
@@ -971,20 +852,12 @@ class AdminController(BaseController):
                     customer.context, customer.context, form_result.get('t38', False), form_result.get('e911', False),
                     form_result.get('cnam', False), form_result.get('active', True)))
 
-<<<<<<< HEAD
                 db.commit()
-=======
-                transaction.commit()
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
             else:
                 return "Error: Failed to insert DID."
 
         except validators.Invalid, error:
-<<<<<<< HEAD
             db.rollback()
-=======
-            transaction.abort()
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
             return 'Validation Error: %s' % error
 
         return "Successfully added DID."
@@ -1024,17 +897,10 @@ class AdminController(BaseController):
                 did.pbx_route_id = 0
                 did.active = i['active']
 
-<<<<<<< HEAD
                 db.commit()
 
         except DataInputError, error:
             db.rollback()
-=======
-                transaction.commit()
-
-        except DataInputError, error:
-            transaction.abort()
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
             return 'Error: %s' % error
 
         return "Successfully updated DID."
@@ -1083,19 +949,11 @@ class AdminController(BaseController):
     def contexts(self, **kw):
         items=[]
         try:
-<<<<<<< HEAD
             for context in PbxContext.query.all():
                 customer = Customer.query.filter(Customer.id==context.customer_id).first()
                 items.append({'id': context.id, 'context': context.context, 'profile': context.profile, 'caller_id_name': context.caller_id_name,
                               'caller_id_number': context.caller_id_number, 'customer_name': customer.name,
                               'gateway': context.gateway, 'customer_id': customer.id})
-=======
-            for row in PbxContext.query.all():
-                customer = Customer.query.filter(Customer.id==row.customer_id).first()
-                items.append({'id': row.id, 'context': row.context, 'profile': row.profile, 'caller_id_name': row.caller_id_name,
-                              'caller_id_number': row.caller_id_number, 'customer_name': customer.name,
-                              'gateway': row.gateway, 'customer_id': customer.id})
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
 
             return {'identifier': 'id', 'label': 'name', 'items': items}
         except Exception, e:
@@ -1106,17 +964,10 @@ class AdminController(BaseController):
     def context_by_id(self, id, **kw):
         items=[]
         try:
-<<<<<<< HEAD
             context = PbxContext.query.filter(PbxContext.id==id).first()
             customer = Customer.query.filter(Customer.id==context.customer_id).first()
             items.append({'id': context.id, 'context': context.context, 'profile': context.profile, 'caller_id_name': context.caller_id_name,
                           'caller_id_number': context.caller_id_number, 'customer_name': customer.name, 'gateway': context.gateway})
-=======
-            row = PbxContext.query.filter(PbxContext.id==id).first()
-            customer = Customer.query.filter(Customer.id==row.customer_id).first()
-            items.append({'id': row.id, 'context': row.context, 'profile': row.profile, 'caller_id_name': row.caller_id_name,
-                          'caller_id_number': row.caller_id_number, 'customer_name': customer.name, 'gateway': row.gateway})
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
 
             return {'identifier': 'id', 'label': 'name', 'items': items}
 
@@ -1147,17 +998,10 @@ class AdminController(BaseController):
                 context.pbx_profile_id = profile.id
                 customer.default_gateway = gateway.name
 
-<<<<<<< HEAD
                 db.commit()
 
         except DataInputError, error:
             db.rollback()
-=======
-                transaction.commit()
-
-        except DataInputError, error:
-            transaction.abort()
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
             return 'Error: %s' % error
 
         return "Successfully updated Gateway."
@@ -1177,17 +1021,10 @@ class AdminController(BaseController):
             context.gateway = u'default'
 
             db.add(context)
-<<<<<<< HEAD
             db.commit()
 
         except validators.Invalid, error:
             db.rollback()
-=======
-            transaction.commit()
-
-        except validators.Invalid, error:
-            transaction.abort()
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
             return 'Error: %s' % error
 
         return "Successfully added context."
@@ -1204,17 +1041,10 @@ class AdminController(BaseController):
             context.gateway = form_result.get('gateway')
 
             db.add(context)
-<<<<<<< HEAD
             db.commit()
 
         except validators.Invalid, error:
             db.rollback()
-=======
-            transaction.commit()
-
-        except validators.Invalid, error:
-            transaction.abort()
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
             return 'Error: %s' % error
 
         return "Successfully edited context."
@@ -1266,17 +1096,10 @@ class AdminController(BaseController):
             admin_group.admin_users.append(admin_user)
             db.add(admin_group)
 
-<<<<<<< HEAD
             db.commit()
 
         except validators.Invalid, error:
             db.rollback()
-=======
-            transaction.commit()
-
-        except validators.Invalid, error:
-            transaction.abort()
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
             return 'Error: %s' % error
 
         return "Successfully added admin user."
@@ -1291,17 +1114,10 @@ class AdminController(BaseController):
             user.first_name = form_result.get('first_name')
             user.last_name = form_result.get('last_name')
 
-<<<<<<< HEAD
             db.commit()
 
         except validators.Invalid, error:
             db.rollback()
-=======
-            transaction.commit()
-
-        except validators.Invalid, error:
-            transaction.abort()
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
             return 'Error: %s' % error
 
         return "Successfully edited admin user."
@@ -1315,17 +1131,10 @@ class AdminController(BaseController):
                 admin = AdminUser.query.filter_by(id=i['id']).first()
                 admin.active = i['active']
 
-<<<<<<< HEAD
                 db.commit()
 
         except DataInputError, error:
             db.rollback()
-=======
-                transaction.commit()
-
-        except DataInputError, error:
-            transaction.abort()
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
             return 'Error: %s' % error
 
         return "Successfully updated admin."
@@ -1340,17 +1149,10 @@ class AdminController(BaseController):
                 logout=True
             admin = AdminUser.query.filter(AdminUser.id==request.params.get('id', 0)).delete()
 
-<<<<<<< HEAD
             db.commit()
 
         except Exception, e:
             db.rollback()
-=======
-            transaction.commit()
-
-        except Exception, e:
-            transaction.abort()
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
             return "Error deleting admin: %s" % e
 
         return  "Successfully deleted admin."
@@ -1409,17 +1211,10 @@ class AdminController(BaseController):
             group = Group.query.filter(Group.name=='pbx_admin').first()
             group.users.append(user)
 
-<<<<<<< HEAD
             db.commit()
 
         except validators.Invalid, error:
             db.rollback()
-=======
-            transaction.commit()
-
-        except validators.Invalid, error:
-            transaction.abort()
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
             return 'Error: %s' % error
 
         return "Successfully added admin user."
@@ -1438,17 +1233,10 @@ class AdminController(BaseController):
             db.execute("UPDATE user_groups set group_id = :group_id WHERE user_id = :user_id",
                         {'group_id': form_result.get('group_id'), 'user_id': user.id})
 
-<<<<<<< HEAD
             db.commit()
 
         except validators.Invalid, error:
             db.rollback()
-=======
-            transaction.commit()
-
-        except validators.Invalid, error:
-            transaction.abort()
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
             return 'Error: %s' % error
 
         return "Successfully edited admin user."
@@ -1463,17 +1251,10 @@ class AdminController(BaseController):
                 u = User.query.filter_by(id=i['id']).first()
                 u.active = i['active']
 
-<<<<<<< HEAD
                 db.commit()
 
         except DataInputError, error:
             db.rollback()
-=======
-                transaction.commit()
-
-        except DataInputError, error:
-            transaction.abort()
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
             return 'Error: %s' % error
 
         return "Successfully updated admin."
@@ -1521,21 +1302,12 @@ class AdminController(BaseController):
     def internal_tickets(self):
         items=[]
         try:
-<<<<<<< HEAD
             for ticket in Ticket.query.filter(Ticket.ticket_status_id==7).all():
                 items.append({'id': ticket.id, 'customer_id': ticket.customer_id, 'opened_by': ticket.opened_by,
                               'status': ticket.ticket_status_id, 'priority': ticket.ticket_priority_id,
                               'type': ticket.ticket_type_id, 'created': ticket.created.strftime("%m/%d/%Y %I:%M:%S %p"),
                               'expected_resolve_date': ticket.expected_resolve_date.strftime("%m/%d/%Y %I:%M:%S %p"),
                               'subject': ticket.subject, 'description': ticket.description})
-=======
-            for row in Ticket.query.filter(Ticket.ticket_status_id==7).all():
-                items.append({'id': row.id, 'customer_id': row.customer_id, 'opened_by': row.opened_by,
-                              'status': row.ticket_status_id, 'priority': row.ticket_priority_id,
-                              'type': row.ticket_type_id, 'created': row.created.strftime("%m/%d/%Y %I:%M:%S %p"),
-                              'expected_resolve_date': row.expected_resolve_date.strftime("%m/%d/%Y %I:%M:%S %p"),
-                              'subject': row.subject, 'description': row.description})
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
 
             return {'identifier': 'id', 'label': 'id', 'items': items}
         except Exception, e:
@@ -1631,17 +1403,10 @@ class AdminController(BaseController):
             ticket.expected_resolution_date = form_result.get('expected_resolution_date')
 
             db.add(ticket)
-<<<<<<< HEAD
             db.commit()
 
         except validators.Invalid, error:
             db.rollback()
-=======
-            transaction.commit()
-
-        except validators.Invalid, error:
-            transaction.abort()
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
             return 'Validation Error: %s' % error
 
         return "Successfully added ticket."
@@ -1658,20 +1423,12 @@ class AdminController(BaseController):
                 ticket.ticket_type_id = int(i['type'])
                 ticket.ticket_priority_id = int(i['priority'])
 
-<<<<<<< HEAD
                 db.commit()
-=======
-                transaction.commit()
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
 
             return "Successfully updated ticket."
 
         except Exception, e:
-<<<<<<< HEAD
             db.rollback()
-=======
-            transaction.abort()
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
             return "Error updating ticket: %s" % e
 
     @authorize(logged_in)
