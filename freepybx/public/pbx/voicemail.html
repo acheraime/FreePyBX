@@ -38,14 +38,12 @@
     dojo.require("dojox.grid.EnhancedGrid");
     dojo.require("dojox.grid.enhanced.plugins.Menu");
 
-
     function VM (data,name) {
         vm = dijit.byId("vmDlg");
         vm.set("title","VoiceMail from "+name);
-        document.getElementById("vmDiv").innerHTML = '<embed type="application/x-shockwave-flash" id="player" flashvars="audioUrl='+data+'" src="http://www.google.com/reader/ui/3523697345-audio-player.swf" width="400" height="27" quality="best"></embed>';
+        document.getElementById("vmDiv").innerHTML = '<embed type="application/x-shockwave-flash" id="player" flashvars="audioUrl='+data+'" src="/flash/audio-player.swf" width="400" height="27" quality="best"></embed>';
         vm.show();
     }
-
 
     function deleteVoiceMail(data) {
         dojo.xhrPost({
@@ -66,8 +64,6 @@
             }
         });
     }
-
-
 </script>
 <div dojoType="dijit.layout.BorderContainer" gutters="false">
     <div dojoType="dijit.Toolbar" region="top" style="width: 100%">
@@ -76,11 +72,11 @@
             <script type="dojo/method" event="onClick">
                 var items = vmGrid.selection.getSelected();
                 if (items.length) {
-                dojo.forEach(items, function(selectedItem) {
-                if (selectedItem !== null) {
-                deleteVoiceMail(vmGrid.store.getValues(selectedItem, "path"));
-                }
-                });
+                    dojo.forEach(items, function(selectedItem) {
+                        if (selectedItem !== null) {
+                            deleteVoiceMail(vmGrid.store.getValues(selectedItem, "path"));
+                        }
+                    });
                 }
             </script>
         </button>
@@ -104,10 +100,8 @@
         </thead>
         <script type="dojo/connect" event="onRowDblClick" args="e">
             // <!--
-            //<![CDATA[      
-
+            //<![CDATA[
                VM(dijit.byId("vmGrid")._getItemAttr(e.rowIndex, 'path'),dijit.byId("vmGrid")._getItemAttr(e.rowIndex, 'name'));
-
             // ]]>
             // -->
         </script>

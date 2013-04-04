@@ -48,8 +48,4 @@ class Flash(object):
             return True
         return False
 
-<<<<<<< HEAD
-=======
-
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
 flash = Flash()

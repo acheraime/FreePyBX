@@ -22,10 +22,6 @@
     remedy known factual inaccuracies.
 """
 
-<<<<<<< HEAD
-=======
-
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
 import formencode
 from formencode import validators
 import shutil, os, sys
@@ -42,20 +38,12 @@ from simplejson import loads, dumps
 from webob import Request, Response
 import simplejson as json
 from zope.sqlalchemy import ZopeTransactionExtension
-<<<<<<< HEAD
-=======
-import transaction
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
 from itertools import chain
 from freepybx.model import *
 from util import *
 from freepybx.model.meta import db
 import re
 
-<<<<<<< HEAD
-=======
-
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
 __all__=['CustomerForm', 'PbxBlacklistedForm', 'GroupForm', 'FaxForm', 'TTSForm',
          'IVRForm', 'IVREditForm','ConferenceForm', 'CIDForm', 'ExtensionForm',
          'VirtualExtensionForm', 'VirtualMailboxForm', 'TODForm', 'UserForm',
@@ -70,10 +58,6 @@ __all__=['CustomerForm', 'PbxBlacklistedForm', 'GroupForm', 'FaxForm', 'TTSForm'
          'TicketNoteForm','GroupEditForm','VirtualMailboxEditForm', 'OutboundRouteForm']
 
 
-<<<<<<< HEAD
-=======
-
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
 def get_mimetype(path):
     type, encoding = mimetypes.guess_type(path)
     return type or 'application/octet-stream'

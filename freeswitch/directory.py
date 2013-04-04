@@ -23,7 +23,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 
-engine = create_engine('postgresql://pybx:3v3lyn555@127.0.0.1/pbx')
+engine = create_engine('postgresql://freepybx:secretpass1@127.0.0.1/pbx')
 
 Session = sessionmaker(bind=engine)
 s = Session()

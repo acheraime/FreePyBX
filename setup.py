@@ -7,7 +7,7 @@ except ImportError:
 
 setup(
     name='FreePyBX',
-    version='0.1',
+    version='0.8',
     description='A PBX configurator for FreeSWITCH',
     author='Noel Morgan',
     author_email='noel@freepybx.org',
@@ -21,7 +21,6 @@ setup(
         "AmFast",
         "PyAMF",
         "pytz",
-        "zope.sqlalchemy",
         "Twisted"
     ],
     setup_requires=["PasteScript>=1.6.3"],

@@ -86,7 +86,6 @@ class PbxSMTP():
         self.msg_body = _msg_body
         self.msg_attachments = _msg_attachments
 
-
     def send_message(self):
         # Create message container - the correct MIME type is multipart/alternative.
         msg = MIMEMultipart('alternative')

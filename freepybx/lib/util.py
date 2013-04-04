@@ -40,10 +40,6 @@ from freepybx.model import *
 from freepybx.model.meta import db
 import inspect
 import mimetypes
-<<<<<<< HEAD
-=======
-import transaction
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
 
 
 path_dir = config['app_conf']['fs_vm_dir']

@@ -26,10 +26,7 @@
 import logging
 import datetime
 from pylons.templating import render_genshi as render
-<<<<<<< HEAD
-=======
 import transaction
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
 from freepybx.lib.base import BaseController
 from freepybx.lib.auth import *
 from freepybx.model import meta

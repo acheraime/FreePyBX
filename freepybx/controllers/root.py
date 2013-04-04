@@ -29,15 +29,8 @@ import urllib2
 import re
 import imaplib
 import logging
-<<<<<<< HEAD
 
 from datetime import datetime
-from genshi import HTML
-=======
-import transaction
-
-from datetime import datetime
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
 
 import formencode
 from formencode import validators
@@ -51,11 +44,8 @@ from pylons.controllers.util import abort, redirect
 from pylons.decorators.rest import restrict
 from pylons.decorators import validate
 
-<<<<<<< HEAD
-=======
 from genshi import HTML
 
->>>>>>> 210f1b1c21ee3a812f64485cd0f05137c3479af9
 from freepybx.lib.base import BaseController, render
 from freepybx.model import meta
 from freepybx.model.meta import *
