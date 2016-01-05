@@ -1,7 +1,5 @@
 FreePyBX
 ====================
 
-Just do:
-
-easy_install FreePyBX
+http://docs.freepybx.org/display/Installation/Quick+Start+Installation+Guide
 
